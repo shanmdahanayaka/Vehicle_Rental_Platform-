@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
+
+// Roles that can view all bookings
+const ADMIN_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN", "MANAGER"];
 
 export async function GET() {
   try {
@@ -10,7 +14,24 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const where = session.user.role === "ADMIN"
+    // Check user status from database
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { status: true, role: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
+    if (user.status !== "ACTIVE") {
+      return NextResponse.json(
+        { error: "Your account is not active" },
+        { status: 403 }
+      );
+    }
+
+    const where = ADMIN_ROLES.includes(user.role)
       ? {}
       : { userId: session.user.id };
 
@@ -26,6 +47,11 @@ export async function GET() {
           },
         },
         payment: true,
+        packages: {
+          include: {
+            package: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -46,6 +72,23 @@ export async function POST(request: Request) {
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check user status from database
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { status: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
+    if (user.status !== "ACTIVE") {
+      return NextResponse.json(
+        { error: "Your account is not active. Cannot create bookings." },
+        { status: 403 }
+      );
     }
 
     const data = await request.json();
@@ -103,8 +146,64 @@ export async function POST(request: Request) {
     const days = Math.ceil(
       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
     );
-    const totalPrice = Number(vehicle.pricePerDay) * days;
 
+    let basePrice = Number(vehicle.pricePerDay) * days;
+    let packagesPrice = 0;
+    let maxDiscount = 0;
+
+    // Get selected packages and calculate their prices
+    const packageIds: string[] = data.packageIds || [];
+    const selectedPackages = packageIds.length > 0
+      ? await prisma.package.findMany({
+          where: {
+            id: { in: packageIds },
+            isActive: true,
+          },
+        })
+      : [];
+
+    // Calculate package prices and max discount
+    const bookingPackagesData: { packageId: string; price: number; quantity: number }[] = [];
+
+    for (const pkg of selectedPackages) {
+      let pkgPrice = 0;
+
+      if (pkg.basePrice) {
+        pkgPrice = Number(pkg.basePrice);
+      } else if (pkg.pricePerDay) {
+        pkgPrice = Number(pkg.pricePerDay) * days;
+      }
+
+      if (pkgPrice > 0) {
+        packagesPrice += pkgPrice;
+        bookingPackagesData.push({
+          packageId: pkg.id,
+          price: pkgPrice,
+          quantity: 1,
+        });
+      } else {
+        // Package with no price (e.g., discount only)
+        bookingPackagesData.push({
+          packageId: pkg.id,
+          price: 0,
+          quantity: 1,
+        });
+      }
+
+      // Track max discount
+      if (pkg.discount && Number(pkg.discount) > maxDiscount) {
+        maxDiscount = Number(pkg.discount);
+      }
+    }
+
+    // Apply discount to base price
+    if (maxDiscount > 0) {
+      basePrice = basePrice * (1 - maxDiscount / 100);
+    }
+
+    const totalPrice = basePrice + packagesPrice;
+
+    // Create booking with packages
     const booking = await prisma.booking.create({
       data: {
         userId: session.user.id,
@@ -114,9 +213,17 @@ export async function POST(request: Request) {
         totalPrice,
         pickupLocation: data.pickupLocation,
         dropoffLocation: data.dropoffLocation,
+        packages: {
+          create: bookingPackagesData,
+        },
       },
       include: {
         vehicle: true,
+        packages: {
+          include: {
+            package: true,
+          },
+        },
       },
     });
 

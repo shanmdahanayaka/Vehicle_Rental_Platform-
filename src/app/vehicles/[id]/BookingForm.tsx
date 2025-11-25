@@ -1,8 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+
+interface Policy {
+  id: string;
+  name: string;
+  title: string;
+  summary: string | null;
+  category: string;
+  isRequired: boolean;
+}
+
+interface Package {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  basePrice: number | null;
+  pricePerDay: number | null;
+  pricePerHour: number | null;
+  discount: number | null;
+  minDuration: number | null;
+  maxDuration: number | null;
+  icon: string | null;
+  policies: Policy[];
+}
 
 interface BookingFormProps {
   vehicleId: string;
@@ -10,6 +34,17 @@ interface BookingFormProps {
   vehicleName: string;
   location: string;
 }
+
+const PACKAGE_TYPE_ICONS: Record<string, string> = {
+  DAILY: "📅",
+  WEEKLY: "📆",
+  MONTHLY: "🗓️",
+  AIRPORT_PICKUP: "✈️",
+  AIRPORT_DROP: "🛫",
+  AIRPORT_ROUND: "🔄",
+  HOURLY: "⏰",
+  CUSTOM: "⚙️",
+};
 
 export default function BookingForm({
   vehicleId,
@@ -26,6 +61,31 @@ export default function BookingForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Packages state
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
+  const [packagesLoading, setPackagesLoading] = useState(true);
+  const [showPolicies, setShowPolicies] = useState<string | null>(null);
+
+  // Fetch available packages
+  useEffect(() => {
+    fetchPackages();
+  }, [vehicleId]);
+
+  const fetchPackages = async () => {
+    setPackagesLoading(true);
+    try {
+      const res = await fetch(`/api/packages?vehicleId=${vehicleId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPackages(data);
+      }
+    } catch (err) {
+      console.error("Error fetching packages:", err);
+    }
+    setPackagesLoading(false);
+  };
+
   const calculateDays = () => {
     if (!startDate || !endDate) return 0;
     const start = new Date(startDate);
@@ -36,7 +96,67 @@ export default function BookingForm({
     return days > 0 ? days : 0;
   };
 
-  const totalPrice = calculateDays() * pricePerDay;
+  // Calculate package price based on type
+  const getPackagePrice = (pkg: Package) => {
+    const days = calculateDays();
+    if (pkg.basePrice) return pkg.basePrice;
+    if (pkg.pricePerDay && days > 0) return pkg.pricePerDay * days;
+    return 0;
+  };
+
+  // Calculate base vehicle price (with any package discounts)
+  const calculateBasePrice = () => {
+    const days = calculateDays();
+    let basePrice = pricePerDay * days;
+
+    // Apply discount from selected packages (use highest discount)
+    const maxDiscount = selectedPackages.reduce((max, pkgId) => {
+      const pkg = packages.find((p) => p.id === pkgId);
+      if (pkg?.discount && pkg.discount > max) return pkg.discount;
+      return max;
+    }, 0);
+
+    if (maxDiscount > 0) {
+      basePrice = basePrice * (1 - maxDiscount / 100);
+    }
+
+    return basePrice;
+  };
+
+  // Calculate total packages price
+  const calculatePackagesPrice = () => {
+    return selectedPackages.reduce((total, pkgId) => {
+      const pkg = packages.find((p) => p.id === pkgId);
+      if (pkg) return total + getPackagePrice(pkg);
+      return total;
+    }, 0);
+  };
+
+  const basePrice = calculateBasePrice();
+  const packagesPrice = calculatePackagesPrice();
+  const totalPrice = basePrice + packagesPrice;
+
+  // Check if any selected package has required policies
+  const getRequiredPolicies = () => {
+    const required: Policy[] = [];
+    selectedPackages.forEach((pkgId) => {
+      const pkg = packages.find((p) => p.id === pkgId);
+      pkg?.policies.forEach((policy) => {
+        if (policy.isRequired && !required.find((p) => p.id === policy.id)) {
+          required.push(policy);
+        }
+      });
+    });
+    return required;
+  };
+
+  const togglePackage = (pkgId: string) => {
+    setSelectedPackages((prev) =>
+      prev.includes(pkgId)
+        ? prev.filter((id) => id !== pkgId)
+        : [...prev, pkgId]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +194,7 @@ export default function BookingForm({
           endDate,
           pickupLocation,
           dropoffLocation,
+          packageIds: selectedPackages,
         }),
       });
 
@@ -92,6 +213,15 @@ export default function BookingForm({
   };
 
   const today = new Date().toISOString().split("T")[0];
+  const days = calculateDays();
+  const requiredPolicies = getRequiredPolicies();
+
+  // Get discount info for display
+  const maxDiscount = selectedPackages.reduce((max, pkgId) => {
+    const pkg = packages.find((p) => p.id === pkgId);
+    if (pkg?.discount && pkg.discount > max) return pkg.discount;
+    return max;
+  }, 0);
 
   return (
     <div className="bg-white rounded-xl p-6 shadow-md sticky top-24">
@@ -158,14 +288,150 @@ export default function BookingForm({
           />
         </div>
 
-        <div className="border-t pt-4">
-          <div className="flex justify-between mb-2">
-            <span className="text-gray-600">
-              ${pricePerDay} x {calculateDays()} days
-            </span>
-            <span className="font-semibold">${totalPrice.toFixed(2)}</span>
+        {/* Packages Section */}
+        {!packagesLoading && packages.length > 0 && (
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+              Add-ons & Packages
+            </h3>
+            <div className="space-y-2">
+              {packages.map((pkg) => {
+                const price = getPackagePrice(pkg);
+                const isSelected = selectedPackages.includes(pkg.id);
+
+                return (
+                  <div key={pkg.id} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => togglePackage(pkg.id)}
+                      className={`w-full text-left rounded-lg p-3 transition border-2 ${
+                        isSelected
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">
+                            {PACKAGE_TYPE_ICONS[pkg.type] || "📦"}
+                          </span>
+                          <div>
+                            <p className="font-medium text-sm">{pkg.name}</p>
+                            {pkg.description && (
+                              <p className="text-xs text-gray-500">{pkg.description}</p>
+                            )}
+                            {pkg.discount && pkg.discount > 0 && (
+                              <span className="inline-flex mt-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded">
+                                {pkg.discount}% off rental
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {price > 0 ? (
+                            <p className="font-semibold text-blue-600">
+                              +${price.toFixed(2)}
+                            </p>
+                          ) : pkg.discount ? (
+                            <p className="text-sm text-green-600">Discount only</p>
+                          ) : (
+                            <p className="text-sm text-gray-400">Included</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Show policies attached to this package */}
+                      {pkg.policies.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowPolicies(showPolicies === pkg.id ? null : pkg.id);
+                            }}
+                            className="text-xs text-blue-600 hover:underline"
+                          >
+                            {pkg.policies.length} policies attached{" "}
+                            {showPolicies === pkg.id ? "▲" : "▼"}
+                          </button>
+
+                          {showPolicies === pkg.id && (
+                            <div className="mt-2 space-y-1">
+                              {pkg.policies.map((policy) => (
+                                <div
+                                  key={policy.id}
+                                  className="text-xs p-2 bg-gray-50 rounded"
+                                >
+                                  <p className="font-medium">
+                                    {policy.title}
+                                    {policy.isRequired && (
+                                      <span className="ml-1 text-red-500">*</span>
+                                    )}
+                                  </p>
+                                  {policy.summary && (
+                                    <p className="text-gray-500 mt-0.5">{policy.summary}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Selection indicator */}
+                    {isSelected && (
+                      <div className="absolute top-3 right-3 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex justify-between text-lg font-bold">
+        )}
+
+        {/* Required Policies Notice */}
+        {requiredPolicies.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-xs font-semibold text-amber-800 mb-1">
+              By booking, you agree to:
+            </p>
+            <ul className="text-xs text-amber-700 space-y-0.5">
+              {requiredPolicies.map((policy) => (
+                <li key={policy.id}>• {policy.title}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Price Breakdown */}
+        <div className="border-t pt-4 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">
+              ${pricePerDay} x {days} days
+            </span>
+            <span>${(pricePerDay * days).toFixed(2)}</span>
+          </div>
+
+          {maxDiscount > 0 && (
+            <div className="flex justify-between text-sm text-green-600">
+              <span>Package discount ({maxDiscount}%)</span>
+              <span>-${((pricePerDay * days * maxDiscount) / 100).toFixed(2)}</span>
+            </div>
+          )}
+
+          {packagesPrice > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Add-ons</span>
+              <span>+${packagesPrice.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between text-lg font-bold pt-2 border-t">
             <span>Total</span>
             <span className="text-blue-600">${totalPrice.toFixed(2)}</span>
           </div>
@@ -173,7 +439,7 @@ export default function BookingForm({
 
         <button
           type="submit"
-          disabled={loading || !calculateDays()}
+          disabled={loading || !days}
           className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading

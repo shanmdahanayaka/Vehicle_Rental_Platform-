@@ -3,6 +3,16 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import BookingForm from "./BookingForm";
 
+const POLICY_CATEGORY_ICONS: Record<string, string> = {
+  cancellation: "🚫",
+  insurance: "🛡️",
+  fuel: "⛽",
+  damage: "🔧",
+  general: "📋",
+  payment: "💳",
+  mileage: "📏",
+};
+
 async function getVehicle(id: string) {
   const vehicle = await prisma.vehicle.findUnique({
     where: { id },
@@ -14,6 +24,11 @@ async function getVehicle(id: string) {
           },
         },
         orderBy: { createdAt: "desc" },
+      },
+      policies: {
+        include: {
+          policy: true,
+        },
       },
     },
   });
@@ -56,6 +71,20 @@ export default async function VehicleDetailPage({
       images = vehicle.images.split(",").map((url) => url.trim()).filter(Boolean);
     }
   }
+
+  // Get active policies for this vehicle
+  const policies = vehicle.policies
+    .map((vp) => vp.policy)
+    .filter((p) => p.isActive);
+
+  // Group policies by category
+  const policiesByCategory = policies.reduce((acc, policy) => {
+    if (!acc[policy.category]) {
+      acc[policy.category] = [];
+    }
+    acc[policy.category].push(policy);
+    return acc;
+  }, {} as Record<string, typeof policies>);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -154,6 +183,63 @@ export default async function VehicleDetailPage({
               </div>
             )}
           </div>
+
+          {/* Rental Policies */}
+          {policies.length > 0 && (
+            <div className="bg-white rounded-xl p-6 shadow-md mb-6">
+              <h2 className="text-xl font-bold mb-4">Rental Policies</h2>
+              <div className="space-y-4">
+                {Object.entries(policiesByCategory).map(([category, categoryPolicies]) => (
+                  <div key={category}>
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <span>{POLICY_CATEGORY_ICONS[category] || "📄"}</span>
+                      {category.charAt(0).toUpperCase() + category.slice(1)} Policies
+                    </h3>
+                    <div className="space-y-2">
+                      {categoryPolicies.map((policy) => (
+                        <details
+                          key={policy.id}
+                          className="group border border-gray-200 rounded-lg overflow-hidden"
+                        >
+                          <summary className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900">
+                                {policy.title}
+                              </span>
+                              {policy.isRequired && (
+                                <span className="inline-flex px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">
+                                  Required
+                                </span>
+                              )}
+                            </div>
+                            <svg
+                              className="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </summary>
+                          <div className="p-4 border-t border-gray-200">
+                            {policy.summary && (
+                              <p className="text-sm text-gray-600 mb-3 font-medium">
+                                {policy.summary}
+                              </p>
+                            )}
+                            <div
+                              className="prose prose-sm max-w-none text-gray-600"
+                              dangerouslySetInnerHTML={{ __html: policy.content }}
+                            />
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Reviews */}
           <div className="bg-white rounded-xl p-6 shadow-md">

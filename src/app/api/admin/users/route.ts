@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { checkPermission, PERMISSIONS, canAssignRole } from "@/lib/permissions";
+import { checkPermissionDynamic, PERMISSIONS, canAssignRole } from "@/lib/permissions";
 import { createAuditLog, getRequestInfo } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 import { UserRole, UserStatus } from "@prisma/client";
+
+// Helper to get user's actual role from database
+async function getUserRoleFromDb(userId: string): Promise<UserRole | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  return user?.role || null;
+}
 
 // GET /api/admin/users - List all users with filters and pagination
 export async function GET(request: Request) {
@@ -15,7 +24,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const permCheck = checkPermission(session.user.role as UserRole, PERMISSIONS.USERS_READ);
+    // Get actual role from database (in case session is stale)
+    const actualRole = await getUserRoleFromDb(session.user.id);
+    if (!actualRole) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
+    const permCheck = await checkPermissionDynamic(session.user.id, actualRole, PERMISSIONS.USERS_READ);
     if (!permCheck.allowed) {
       return NextResponse.json({ error: permCheck.reason }, { status: 403 });
     }
@@ -107,7 +122,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const permCheck = checkPermission(session.user.role as UserRole, PERMISSIONS.USERS_CREATE);
+    // Get actual role from database (in case session is stale)
+    const actualRole = await getUserRoleFromDb(session.user.id);
+    if (!actualRole) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
+    const permCheck = await checkPermissionDynamic(session.user.id, actualRole, PERMISSIONS.USERS_CREATE);
     if (!permCheck.allowed) {
       return NextResponse.json({ error: permCheck.reason }, { status: 403 });
     }
@@ -146,7 +167,7 @@ export async function POST(request: Request) {
 
     // Check if user can assign the requested role
     const requestedRole = (role as UserRole) || "USER";
-    if (!canAssignRole(session.user.role as UserRole, requestedRole)) {
+    if (!canAssignRole(actualRole, requestedRole)) {
       return NextResponse.json(
         { error: "You cannot assign this role" },
         { status: 403 }

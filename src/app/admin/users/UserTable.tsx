@@ -56,6 +56,7 @@ export default function UserTable() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [permissionsUser, setPermissionsUser] = useState<User | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
@@ -338,6 +339,14 @@ export default function UserTable() {
                         >
                           Edit
                         </button>
+                        {session?.user?.role === "SUPER_ADMIN" && session?.user?.id !== user.id && (
+                          <button
+                            onClick={() => setPermissionsUser(user)}
+                            className="rounded-lg bg-purple-100 px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-200 transition"
+                          >
+                            Perms
+                          </button>
+                        )}
                         {canManageUser(user.role) && session?.user?.id !== user.id && (
                           <button
                             onClick={() => handleDeleteUser(user.id)}
@@ -414,6 +423,14 @@ export default function UserTable() {
             fetchUsers();
           }}
           currentUserRole={session?.user?.role as UserRole}
+        />
+      )}
+
+      {/* Permissions Modal */}
+      {permissionsUser && (
+        <PermissionsModal
+          user={permissionsUser}
+          onClose={() => setPermissionsUser(null)}
         />
       )}
     </div>
@@ -701,6 +718,232 @@ function CreateUserModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Permissions Modal Component
+interface Permission {
+  key: string;
+  name: string;
+  resource: string;
+  action: string;
+}
+
+interface UserPermissionData {
+  user: { id: string; name: string | null; email: string; role: UserRole };
+  effectivePermissions: string[];
+  userSpecificPermissions: { permission: string; granted: boolean }[];
+  allPermissions: Permission[];
+}
+
+function PermissionsModal({
+  user,
+  onClose,
+}: {
+  user: User;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<UserPermissionData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPermissions();
+  }, [user.id]);
+
+  const fetchPermissions = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/permissions`);
+      if (res.ok) {
+        const result = await res.json();
+        setData(result);
+      }
+    } catch (error) {
+      console.error("Error fetching permissions:", error);
+    }
+    setLoading(false);
+  };
+
+  const handleGrantPermission = async (permission: string) => {
+    setActionLoading(permission);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/permissions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permission }),
+      });
+
+      if (res.ok) {
+        fetchPermissions();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Failed to grant permission");
+      }
+    } catch (error) {
+      console.error("Error granting permission:", error);
+      alert("Failed to grant permission");
+    }
+    setActionLoading(null);
+  };
+
+  const handleRevokePermission = async (permission: string) => {
+    setActionLoading(permission);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/permissions?permission=${encodeURIComponent(permission)}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        fetchPermissions();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Failed to revoke permission");
+      }
+    } catch (error) {
+      console.error("Error revoking permission:", error);
+      alert("Failed to revoke permission");
+    }
+    setActionLoading(null);
+  };
+
+  const groupPermissionsByResource = () => {
+    if (!data) return {};
+    const grouped: Record<string, Permission[]> = {};
+    data.allPermissions.forEach((perm) => {
+      if (!grouped[perm.resource]) {
+        grouped[perm.resource] = [];
+      }
+      grouped[perm.resource].push(perm);
+    });
+    return grouped;
+  };
+
+  const isPermissionGranted = (permName: string) => {
+    return data?.effectivePermissions.includes(permName) || false;
+  };
+
+  const isUserSpecificPermission = (permName: string) => {
+    return data?.userSpecificPermissions.some((up) => up.permission === permName && up.granted) || false;
+  };
+
+  const groupedPermissions = groupPermissionsByResource();
+
+  const RESOURCE_COLORS: Record<string, string> = {
+    users: "border-purple-200 bg-purple-50",
+    vehicles: "border-blue-200 bg-blue-50",
+    bookings: "border-green-200 bg-green-50",
+    reviews: "border-yellow-200 bg-yellow-50",
+    payments: "border-emerald-200 bg-emerald-50",
+    permissions: "border-red-200 bg-red-50",
+    audit_logs: "border-slate-200 bg-slate-50",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-xl flex flex-col">
+        <div className="px-6 py-4 border-b border-slate-200">
+          <h2 className="text-xl font-bold text-slate-900">
+            Manage Permissions: {user.name || user.email}
+          </h2>
+          <p className="text-sm text-slate-500">
+            Role: <span className="font-medium">{user.role}</span> - Grant or revoke individual permissions
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <svg className="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {Object.entries(groupedPermissions).map(([resource, perms]) => (
+                <div key={resource} className={`rounded-xl border p-4 ${RESOURCE_COLORS[resource] || "border-slate-200 bg-slate-50"}`}>
+                  <h3 className="font-semibold text-slate-900 capitalize mb-3">{resource}</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                    {perms.map((perm) => {
+                      const isGranted = isPermissionGranted(perm.name);
+                      const isUserSpecific = isUserSpecificPermission(perm.name);
+                      const isLoading = actionLoading === perm.name;
+
+                      return (
+                        <button
+                          key={perm.key}
+                          onClick={() => {
+                            if (isUserSpecific) {
+                              handleRevokePermission(perm.name);
+                            } else if (!isGranted) {
+                              handleGrantPermission(perm.name);
+                            }
+                          }}
+                          disabled={isLoading || (isGranted && !isUserSpecific)}
+                          className={`relative rounded-lg px-3 py-2 text-xs font-medium transition ${
+                            isGranted
+                              ? isUserSpecific
+                                ? "bg-purple-600 text-white hover:bg-purple-700"
+                                : "bg-green-100 text-green-700 cursor-not-allowed"
+                              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                          } ${isLoading ? "opacity-50" : ""}`}
+                          title={
+                            isUserSpecific
+                              ? "Click to revoke (user-specific)"
+                              : isGranted
+                              ? "Granted by role"
+                              : "Click to grant"
+                          }
+                        >
+                          {isLoading ? (
+                            <span className="flex items-center justify-center">
+                              <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                            </span>
+                          ) : (
+                            <>
+                              {perm.action}
+                              {isUserSpecific && (
+                                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-purple-400" />
+                              )}
+                            </>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-4 text-xs text-slate-500">
+              <span className="flex items-center gap-1">
+                <span className="h-3 w-3 rounded bg-green-100 border border-green-300" /> From role
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-3 w-3 rounded bg-purple-600" /> User-specific
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-3 w-3 rounded bg-white border border-slate-300" /> Not granted
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-300"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

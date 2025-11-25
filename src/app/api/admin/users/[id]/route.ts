@@ -1,13 +1,22 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { checkPermission, PERMISSIONS, canManageUser, canAssignRole } from "@/lib/permissions";
+import { checkPermissionDynamic, PERMISSIONS, canManageUser, canAssignRole } from "@/lib/permissions";
 import { createAuditLog, getRequestInfo } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 import { UserRole, UserStatus } from "@prisma/client";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+// Helper to get user's actual role from database
+async function getUserRoleFromDb(userId: string): Promise<UserRole | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  return user?.role || null;
 }
 
 // GET /api/admin/users/[id] - Get a single user
@@ -20,7 +29,13 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const permCheck = checkPermission(session.user.role as UserRole, PERMISSIONS.USERS_READ);
+    // Get actual role from database
+    const actualRole = await getUserRoleFromDb(session.user.id);
+    if (!actualRole) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
+    const permCheck = await checkPermissionDynamic(session.user.id, actualRole, PERMISSIONS.USERS_READ);
     if (!permCheck.allowed) {
       return NextResponse.json({ error: permCheck.reason }, { status: 403 });
     }
@@ -104,7 +119,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const permCheck = checkPermission(session.user.role as UserRole, PERMISSIONS.USERS_UPDATE);
+    // Get actual role from database
+    const actualRole = await getUserRoleFromDb(session.user.id);
+    if (!actualRole) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
+    const permCheck = await checkPermissionDynamic(session.user.id, actualRole, PERMISSIONS.USERS_UPDATE);
     if (!permCheck.allowed) {
       return NextResponse.json({ error: permCheck.reason }, { status: 403 });
     }
@@ -120,7 +141,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     // Check if user can manage this user
-    if (!canManageUser(session.user.role as UserRole, targetUser.role)) {
+    if (!canManageUser(actualRole, targetUser.role)) {
       return NextResponse.json(
         { error: "You cannot modify users with equal or higher role" },
         { status: 403 }
@@ -169,7 +190,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     if (role !== undefined && role !== targetUser.role) {
       // Check if user can assign this role
-      if (!canAssignRole(session.user.role as UserRole, role as UserRole)) {
+      if (!canAssignRole(actualRole, role as UserRole)) {
         return NextResponse.json(
           { error: "You cannot assign this role" },
           { status: 403 }
@@ -249,7 +270,13 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const permCheck = checkPermission(session.user.role as UserRole, PERMISSIONS.USERS_DELETE);
+    // Get actual role from database
+    const actualRole = await getUserRoleFromDb(session.user.id);
+    if (!actualRole) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
+    const permCheck = await checkPermissionDynamic(session.user.id, actualRole, PERMISSIONS.USERS_DELETE);
     if (!permCheck.allowed) {
       return NextResponse.json({ error: permCheck.reason }, { status: 403 });
     }
@@ -265,7 +292,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     // Check if user can manage this user
-    if (!canManageUser(session.user.role as UserRole, targetUser.role)) {
+    if (!canManageUser(actualRole, targetUser.role)) {
       return NextResponse.json(
         { error: "You cannot delete users with equal or higher role" },
         { status: 403 }

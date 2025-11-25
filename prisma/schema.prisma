@@ -83,8 +83,10 @@ model Vehicle {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  bookings Booking[]
-  reviews  Review[]
+  bookings        Booking[]
+  reviews         Review[]
+  policies        VehiclePolicy[]
+  packages        VehiclePackage[]
 }
 
 model Booking {
@@ -100,9 +102,10 @@ model Booking {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  payment Payment?
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  payment  Payment?
+  packages BookingPackage[]
 }
 
 model Payment {
@@ -180,6 +183,135 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
+}
+
+// ==================== PACKAGES & POLICIES ====================
+
+// Rental Package Types
+enum PackageType {
+  DAILY           // Standard daily rental
+  WEEKLY          // Weekly rental with discount
+  MONTHLY         // Monthly/Long-term rental
+  AIRPORT_PICKUP  // Airport pickup service
+  AIRPORT_DROP    // Airport drop service
+  AIRPORT_ROUND   // Airport round trip (pickup + drop)
+  HOURLY          // Hourly rental
+  CUSTOM          // Custom package
+}
+
+// Package - Dynamic rental options
+model Package {
+  id           String      @id @default(cuid())
+  name         String      // e.g., "Airport Pickup", "Weekly Rental"
+  description  String?     @db.Text
+  type         PackageType
+
+  // Pricing
+  basePrice    Decimal?    @db.Decimal(10, 2)  // Fixed price (for services like airport pickup)
+  pricePerDay  Decimal?    @db.Decimal(10, 2)  // Per day rate (for rental packages)
+  pricePerHour Decimal?    @db.Decimal(10, 2)  // Per hour rate (for hourly packages)
+  discount     Decimal?    @db.Decimal(5, 2)   // Discount percentage (e.g., 10% off for weekly)
+
+  // Duration constraints
+  minDuration  Int?        // Minimum duration in hours/days
+  maxDuration  Int?        // Maximum duration in hours/days
+
+  // Settings
+  isActive     Boolean     @default(true)
+  isGlobal     Boolean     @default(true)      // Available for all vehicles if true
+  sortOrder    Int         @default(0)         // Display order
+  icon         String?     // Icon name or URL
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  policies         PackagePolicy[]
+  vehiclePackages  VehiclePackage[]
+  bookings         BookingPackage[]
+}
+
+// Policy - Dynamic policies for packages and vehicles
+model Policy {
+  id           String   @id @default(cuid())
+  name         String   // e.g., "Cancellation Policy", "Insurance Policy"
+  title        String   // Display title
+  content      String   @db.Text  // Full policy content (can be HTML/Markdown)
+  summary      String?  @db.Text  // Short summary for quick view
+
+  // Categorization
+  category     String   // e.g., "cancellation", "insurance", "fuel", "damage", "general"
+
+  // Settings
+  isActive     Boolean  @default(true)
+  isRequired   Boolean  @default(false)  // Must be accepted before booking
+  sortOrder    Int      @default(0)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  packagePolicies  PackagePolicy[]
+  vehiclePolicies  VehiclePolicy[]
+}
+
+// Junction: Package <-> Policy
+model PackagePolicy {
+  id           String   @id @default(cuid())
+  packageId    String
+  policyId     String
+  createdAt    DateTime @default(now())
+
+  package  Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  policy   Policy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, policyId])
+}
+
+// Junction: Vehicle <-> Policy
+model VehiclePolicy {
+  id           String   @id @default(cuid())
+  vehicleId    String
+  policyId     String
+  createdAt    DateTime @default(now())
+
+  vehicle  Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  policy   Policy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, policyId])
+}
+
+// Junction: Vehicle <-> Package (for non-global packages)
+model VehiclePackage {
+  id           String   @id @default(cuid())
+  vehicleId    String
+  packageId    String
+
+  // Override pricing for specific vehicle
+  customPrice  Decimal? @db.Decimal(10, 2)
+
+  createdAt    DateTime @default(now())
+
+  vehicle  Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  package  Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, packageId])
+}
+
+// Junction: Booking <-> Package (selected packages for a booking)
+model BookingPackage {
+  id           String   @id @default(cuid())
+  bookingId    String
+  packageId    String
+  quantity     Int      @default(1)
+  price        Decimal  @db.Decimal(10, 2)  // Price at time of booking
+
+  createdAt    DateTime @default(now())
+
+  booking  Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  package  Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, packageId])
 }
 
 // Permission Management Models
