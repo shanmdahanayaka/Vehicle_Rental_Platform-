@@ -49,6 +49,18 @@ export async function GET(request: Request) {
             policy: true,
           },
         },
+        vehiclePackages: {
+          include: {
+            vehicle: {
+              select: {
+                id: true,
+                name: true,
+                brand: true,
+                model: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             vehiclePackages: true,
@@ -99,6 +111,7 @@ export async function POST(request: Request) {
       sortOrder,
       icon,
       policyIds,
+      vehicleIds,
     } = body;
 
     if (!name || !type) {
@@ -121,7 +134,7 @@ export async function POST(request: Request) {
         maxDuration: maxDuration ? parseInt(maxDuration) : null,
         isActive: isActive ?? true,
         isGlobal: isGlobal ?? true,
-        sortOrder: sortOrder ?? 0,
+        sortOrder: sortOrder ? parseInt(sortOrder) : 0,
         icon,
         policies: policyIds?.length
           ? {
@@ -130,11 +143,30 @@ export async function POST(request: Request) {
               })),
             }
           : undefined,
+        vehiclePackages: !isGlobal && vehicleIds?.length
+          ? {
+              create: vehicleIds.map((vehicleId: string) => ({
+                vehicleId,
+              })),
+            }
+          : undefined,
       },
       include: {
         policies: {
           include: {
             policy: true,
+          },
+        },
+        vehiclePackages: {
+          include: {
+            vehicle: {
+              select: {
+                id: true,
+                name: true,
+                brand: true,
+                model: true,
+              },
+            },
           },
         },
       },

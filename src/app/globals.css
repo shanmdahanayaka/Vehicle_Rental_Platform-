@@ -24,3 +24,31 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Form element styling for better visibility */
+input::placeholder,
+textarea::placeholder,
+select::placeholder {
+  color: #64748b; /* slate-500 - darker and more visible */
+  opacity: 1;
+}
+
+/* Label styling */
+label {
+  color: #334155; /* slate-700 - dark and visible */
+}
+
+/* Input, textarea, select base styling */
+input,
+textarea,
+select {
+  color: #1e293b; /* slate-800 - dark text for input values */
+}
+
+/* Ensure disabled inputs are still readable */
+input:disabled,
+textarea:disabled,
+select:disabled {
+  color: #64748b; /* slate-500 */
+  background-color: #f1f5f9; /* slate-100 */
+}

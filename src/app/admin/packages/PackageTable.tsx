@@ -2,11 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { PackageType } from "@prisma/client";
+import { useUI } from "@/components/ui/UIProvider";
 
 interface Policy {
   id: string;
   name: string;
   title: string;
+}
+
+interface Vehicle {
+  id: string;
+  name: string;
+  brand: string;
+  model: string;
 }
 
 interface Package {
@@ -25,6 +33,7 @@ interface Package {
   sortOrder: number;
   icon: string | null;
   policies: { policy: Policy }[];
+  vehiclePackages: { vehicle: Vehicle }[];
   _count: {
     vehiclePackages: number;
     bookings: number;
@@ -54,16 +63,19 @@ const PACKAGE_TYPE_COLORS: Record<PackageType, string> = {
 };
 
 export default function PackageTable() {
+  const { confirm, toast } = useUI();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<Package | null>(null);
   const [allPolicies, setAllPolicies] = useState<Policy[]>([]);
+  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
     fetchPackages();
     fetchPolicies();
+    fetchVehicles();
   }, [showInactive]);
 
   const fetchPackages = async () => {
@@ -92,20 +104,39 @@ export default function PackageTable() {
     }
   };
 
+  const fetchVehicles = async () => {
+    try {
+      const res = await fetch("/api/vehicles");
+      if (res.ok) {
+        const data = await res.json();
+        setAllVehicles(Array.isArray(data) ? data : data.vehicles || []);
+      }
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+    }
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this package?")) return;
+    const confirmed = await confirm({
+      title: "Delete Package",
+      message: "Are you sure you want to delete this package? This action cannot be undone.",
+      confirmText: "Delete",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch(`/api/admin/packages/${id}`, { method: "DELETE" });
       if (res.ok) {
+        toast({ message: "Package deleted successfully", type: "success" });
         fetchPackages();
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to delete package");
+        toast({ message: error.error || "Failed to delete package", type: "error" });
       }
     } catch (error) {
       console.error("Error deleting package:", error);
-      alert("Failed to delete package");
+      toast({ message: "Failed to delete package", type: "error" });
     }
   };
 
@@ -205,16 +236,34 @@ export default function PackageTable() {
                         {PACKAGE_TYPE_LABELS[pkg.type]}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm">
-                      {pkg.basePrice && <p>Base: ${pkg.basePrice}</p>}
-                      {pkg.pricePerDay && <p>Per Day: ${pkg.pricePerDay}</p>}
-                      {pkg.pricePerHour && <p>Per Hour: ${pkg.pricePerHour}</p>}
-                      {pkg.discount && <p className="text-green-600">{pkg.discount}% off</p>}
+                    <td className="px-6 py-4 text-sm text-slate-700">
+                      {pkg.basePrice && <p><span className="text-slate-500">Base:</span> <span className="font-medium text-slate-900">${pkg.basePrice}</span></p>}
+                      {pkg.pricePerDay && <p><span className="text-slate-500">Per Day:</span> <span className="font-medium text-slate-900">${pkg.pricePerDay}</span></p>}
+                      {pkg.pricePerHour && <p><span className="text-slate-500">Per Hour:</span> <span className="font-medium text-slate-900">${pkg.pricePerHour}</span></p>}
+                      {pkg.discount && <p className="text-green-600 font-medium">{pkg.discount}% off</p>}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${pkg.isGlobal ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
-                        {pkg.isGlobal ? "All Vehicles" : `${pkg._count.vehiclePackages} vehicles`}
-                      </span>
+                      {pkg.isGlobal ? (
+                        <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700">
+                          All Vehicles
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {pkg.vehiclePackages?.slice(0, 3).map((vp) => (
+                            <span key={vp.vehicle.id} className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700">
+                              {vp.vehicle.name}
+                            </span>
+                          ))}
+                          {pkg.vehiclePackages?.length > 3 && (
+                            <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-600">
+                              +{pkg.vehiclePackages.length - 3} more
+                            </span>
+                          )}
+                          {(!pkg.vehiclePackages || pkg.vehiclePackages.length === 0) && (
+                            <span className="text-xs text-amber-600">No vehicles assigned</span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
@@ -276,6 +325,7 @@ export default function PackageTable() {
         <PackageModal
           pkg={editingPackage}
           policies={allPolicies}
+          vehicles={allVehicles}
           onClose={() => {
             setShowModal(false);
             setEditingPackage(null);
@@ -295,11 +345,13 @@ export default function PackageTable() {
 function PackageModal({
   pkg,
   policies,
+  vehicles,
   onClose,
   onSave,
 }: {
   pkg: Package | null;
   policies: Policy[];
+  vehicles: Vehicle[];
   onClose: () => void;
   onSave: () => void;
 }) {
@@ -318,6 +370,7 @@ function PackageModal({
     sortOrder: pkg?.sortOrder?.toString() || "0",
     icon: pkg?.icon || "",
     policyIds: pkg?.policies.map((pp) => pp.policy.id) || [],
+    vehicleIds: pkg?.vehiclePackages?.map((vp) => vp.vehicle.id) || [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -356,6 +409,15 @@ function PackageModal({
       policyIds: prev.policyIds.includes(policyId)
         ? prev.policyIds.filter((id) => id !== policyId)
         : [...prev.policyIds, policyId],
+    }));
+  };
+
+  const handleVehicleToggle = (vehicleId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      vehicleIds: prev.vehicleIds.includes(vehicleId)
+        ? prev.vehicleIds.filter((id) => id !== vehicleId)
+        : [...prev.vehicleIds, vehicleId],
     }));
   };
 
@@ -507,12 +569,47 @@ function PackageModal({
                 <input
                   type="checkbox"
                   checked={formData.isGlobal}
-                  onChange={(e) => setFormData({ ...formData, isGlobal: e.target.checked })}
+                  onChange={(e) => setFormData({ ...formData, isGlobal: e.target.checked, vehicleIds: e.target.checked ? [] : formData.vehicleIds })}
                   className="rounded border-slate-300"
                 />
                 Available for all vehicles
               </label>
             </div>
+
+            {/* Vehicle Selection - Only show when not global */}
+            {!formData.isGlobal && vehicles.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Select Vehicles ({formData.vehicleIds.length} selected)
+                </label>
+                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    {vehicles.map((vehicle) => (
+                      <button
+                        key={vehicle.id}
+                        type="button"
+                        onClick={() => handleVehicleToggle(vehicle.id)}
+                        className={`text-left rounded-lg p-2 text-sm transition ${
+                          formData.vehicleIds.includes(vehicle.id)
+                            ? "bg-blue-600 text-white"
+                            : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        <p className="font-medium">{vehicle.name}</p>
+                        <p className={`text-xs ${formData.vehicleIds.includes(vehicle.id) ? "text-blue-200" : "text-slate-500"}`}>
+                          {vehicle.brand} {vehicle.model}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {formData.vehicleIds.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Please select at least one vehicle for this package
+                  </p>
+                )}
+              </div>
+            )}
 
             {policies.length > 0 && (
               <div>

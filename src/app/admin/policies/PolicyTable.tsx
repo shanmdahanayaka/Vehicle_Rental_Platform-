@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useUI } from "@/components/ui/UIProvider";
 
 interface Policy {
   id: string;
@@ -52,6 +53,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export default function PolicyTable() {
+  const { confirm, toast } = useUI();
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -79,19 +81,26 @@ export default function PolicyTable() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this policy?")) return;
+    const confirmed = await confirm({
+      title: "Delete Policy",
+      message: "Are you sure you want to delete this policy? This action cannot be undone.",
+      confirmText: "Delete",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch(`/api/admin/policies/${id}`, { method: "DELETE" });
       if (res.ok) {
+        toast({ message: "Policy deleted successfully", type: "success" });
         fetchPolicies();
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to delete policy");
+        toast({ message: error.error || "Failed to delete policy", type: "error" });
       }
     } catch (error) {
       console.error("Error deleting policy:", error);
-      alert("Failed to delete policy");
+      toast({ message: "Failed to delete policy", type: "error" });
     }
   };
 
@@ -483,6 +492,7 @@ function AttachPolicyModal({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { toast } = useUI();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
@@ -537,14 +547,15 @@ function AttachPolicyModal({
       });
 
       if (res.ok) {
+        toast({ message: "Policy attachments saved successfully", type: "success" });
         onSave();
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to attach policy");
+        toast({ message: error.error || "Failed to attach policy", type: "error" });
       }
     } catch (error) {
       console.error("Error attaching policy:", error);
-      alert("Failed to attach policy");
+      toast({ message: "Failed to attach policy", type: "error" });
     }
     setSaving(false);
   };

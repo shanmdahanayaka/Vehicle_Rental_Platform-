@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { UserRole, UserStatus } from "@prisma/client";
+import { useUI } from "@/components/ui/UIProvider";
 
 interface User {
   id: string;
@@ -43,6 +44,7 @@ const STATUS_BADGES: Record<UserStatus, string> = {
 
 export default function UserTable() {
   const { data: session } = useSession();
+  const { confirm, toast } = useUI();
   const [users, setUsers] = useState<User[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
@@ -103,23 +105,28 @@ export default function UserTable() {
       });
 
       if (res.ok) {
+        toast({ message: "User updated successfully", type: "success" });
         fetchUsers();
         setEditingUser(null);
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to update user");
+        toast({ message: error.error || "Failed to update user", type: "error" });
       }
     } catch (error) {
       console.error("Error updating user:", error);
-      alert("Failed to update user");
+      toast({ message: "Failed to update user", type: "error" });
     }
     setActionLoading(null);
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Delete User",
+      message: "Are you sure you want to delete this user? This action cannot be undone.",
+      confirmText: "Delete",
+      variant: "danger",
+    });
+    if (!confirmed) return;
 
     setActionLoading(userId);
     try {
@@ -128,14 +135,15 @@ export default function UserTable() {
       });
 
       if (res.ok) {
+        toast({ message: "User deleted successfully", type: "success" });
         fetchUsers();
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to delete user");
+        toast({ message: error.error || "Failed to delete user", type: "error" });
       }
     } catch (error) {
       console.error("Error deleting user:", error);
-      alert("Failed to delete user");
+      toast({ message: "Failed to delete user", type: "error" });
     }
     setActionLoading(null);
   };
@@ -745,6 +753,7 @@ function PermissionsModal({
   user: User;
   onClose: () => void;
 }) {
+  const { toast } = useUI();
   const [data, setData] = useState<UserPermissionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -777,14 +786,15 @@ function PermissionsModal({
       });
 
       if (res.ok) {
+        toast({ message: "Permission granted successfully", type: "success" });
         fetchPermissions();
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to grant permission");
+        toast({ message: error.error || "Failed to grant permission", type: "error" });
       }
     } catch (error) {
       console.error("Error granting permission:", error);
-      alert("Failed to grant permission");
+      toast({ message: "Failed to grant permission", type: "error" });
     }
     setActionLoading(null);
   };
@@ -797,14 +807,15 @@ function PermissionsModal({
       });
 
       if (res.ok) {
+        toast({ message: "Permission revoked successfully", type: "success" });
         fetchPermissions();
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to revoke permission");
+        toast({ message: error.error || "Failed to revoke permission", type: "error" });
       }
     } catch (error) {
       console.error("Error revoking permission:", error);
-      alert("Failed to revoke permission");
+      toast({ message: "Failed to revoke permission", type: "error" });
     }
     setActionLoading(null);
   };

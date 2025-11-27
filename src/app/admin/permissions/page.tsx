@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useUI } from "@/components/ui/UIProvider";
 
 interface Permission {
   key: string;
@@ -52,6 +53,7 @@ const ACTION_ICONS: Record<string, string> = {
 
 export default function PermissionsPage() {
   const { data: session } = useSession();
+  const { confirm, toast } = useUI();
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -88,9 +90,13 @@ export default function PermissionsPage() {
   };
 
   const handleInitializePermissions = async () => {
-    if (!confirm("This will initialize/update all permissions in the database. Continue?")) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Initialize Permissions",
+      message: "This will initialize/update all permissions in the database. Continue?",
+      confirmText: "Initialize",
+      variant: "warning",
+    });
+    if (!confirmed) return;
 
     setInitializing(true);
     try {
@@ -99,15 +105,15 @@ export default function PermissionsPage() {
       });
 
       if (res.ok) {
-        alert("Permissions initialized successfully!");
+        toast({ message: "Permissions initialized successfully!", type: "success" });
         fetchData();
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to initialize permissions");
+        toast({ message: error.error || "Failed to initialize permissions", type: "error" });
       }
     } catch (error) {
       console.error("Error initializing permissions:", error);
-      alert("Failed to initialize permissions");
+      toast({ message: "Failed to initialize permissions", type: "error" });
     }
     setInitializing(false);
   };

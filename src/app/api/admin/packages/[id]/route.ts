@@ -105,6 +105,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       sortOrder,
       icon,
       policyIds,
+      vehicleIds,
     } = body;
 
     // Build update data
@@ -120,7 +121,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (maxDuration !== undefined) updateData.maxDuration = maxDuration ? parseInt(maxDuration) : null;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (isGlobal !== undefined) updateData.isGlobal = isGlobal;
-    if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+    if (sortOrder !== undefined) updateData.sortOrder = sortOrder ? parseInt(sortOrder) : 0;
     if (icon !== undefined) updateData.icon = icon;
 
     // Update policies if provided
@@ -141,6 +142,26 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       }
     }
 
+    // Update vehicle assignments if provided
+    if (vehicleIds !== undefined) {
+      // Delete existing vehicle assignments
+      await prisma.vehiclePackage.deleteMany({
+        where: { packageId: id },
+      });
+
+      // Create new vehicle assignments (only if not global)
+      const finalIsGlobal = isGlobal !== undefined ? isGlobal : (await prisma.package.findUnique({ where: { id }, select: { isGlobal: true } }))?.isGlobal;
+
+      if (!finalIsGlobal && vehicleIds.length > 0) {
+        await prisma.vehiclePackage.createMany({
+          data: vehicleIds.map((vehicleId: string) => ({
+            packageId: id,
+            vehicleId,
+          })),
+        });
+      }
+    }
+
     const pkg = await prisma.package.update({
       where: { id },
       data: updateData,
@@ -148,6 +169,18 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         policies: {
           include: {
             policy: true,
+          },
+        },
+        vehiclePackages: {
+          include: {
+            vehicle: {
+              select: {
+                id: true,
+                name: true,
+                brand: true,
+                model: true,
+              },
+            },
           },
         },
       },
