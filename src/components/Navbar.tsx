@@ -39,12 +39,42 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
-            <Link
-              href="/vehicles"
-              className="text-slate-600 hover:text-blue-600 transition font-medium"
-            >
-              Vehicles
-            </Link>
+            {!isAdminRoute && (
+              <>
+                <Link
+                  href="/vehicles"
+                  className={`transition font-medium ${
+                    pathname === "/vehicles" ? "text-blue-600" : "text-slate-600 hover:text-blue-600"
+                  }`}
+                >
+                  Vehicles
+                </Link>
+                <Link
+                  href="/about"
+                  className={`transition font-medium ${
+                    pathname === "/about" ? "text-blue-600" : "text-slate-600 hover:text-blue-600"
+                  }`}
+                >
+                  About
+                </Link>
+                <Link
+                  href="/contact"
+                  className={`transition font-medium ${
+                    pathname === "/contact" ? "text-blue-600" : "text-slate-600 hover:text-blue-600"
+                  }`}
+                >
+                  Contact
+                </Link>
+                <Link
+                  href="/faq"
+                  className={`transition font-medium ${
+                    pathname === "/faq" ? "text-blue-600" : "text-slate-600 hover:text-blue-600"
+                  }`}
+                >
+                  FAQ
+                </Link>
+              </>
+            )}
             {session ? (
               <>
                 <Link
@@ -226,13 +256,47 @@ export default function Navbar() {
       {isMenuOpen && (
         <div className="md:hidden bg-white border-t border-slate-200">
           <div className="px-4 py-3 space-y-1">
-            <Link
-              href="/vehicles"
-              onClick={() => setIsMenuOpen(false)}
-              className="block rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-50 font-medium"
-            >
-              Vehicles
-            </Link>
+            {!isAdminRoute && (
+              <>
+                <Link
+                  href="/vehicles"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`block rounded-lg px-3 py-2 font-medium ${
+                    pathname === "/vehicles" ? "text-blue-600 bg-blue-50" : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  Vehicles
+                </Link>
+                <Link
+                  href="/about"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`block rounded-lg px-3 py-2 font-medium ${
+                    pathname === "/about" ? "text-blue-600 bg-blue-50" : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  About
+                </Link>
+                <Link
+                  href="/contact"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`block rounded-lg px-3 py-2 font-medium ${
+                    pathname === "/contact" ? "text-blue-600 bg-blue-50" : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  Contact
+                </Link>
+                <Link
+                  href="/faq"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`block rounded-lg px-3 py-2 font-medium ${
+                    pathname === "/faq" ? "text-blue-600 bg-blue-50" : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  FAQ
+                </Link>
+                <div className="border-t border-slate-200 my-2" />
+              </>
+            )}
             {session ? (
               <>
                 {/* User Info - Mobile */}
