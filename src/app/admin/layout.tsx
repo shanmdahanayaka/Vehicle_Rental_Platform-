@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import AdminSidebar from "@/components/admin/AdminSidebar";
-import AdminHeader from "@/components/admin/AdminHeader";
 
 export default async function AdminLayout({
   children,
@@ -16,10 +15,9 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="bg-slate-50">
       <AdminSidebar />
-      <div className="ml-64">
-        <AdminHeader />
+      <div className="ml-64 min-h-[calc(100vh-4rem)]">
         <main className="p-6">{children}</main>
       </div>
     </div>

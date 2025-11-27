@@ -82,22 +82,21 @@ export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white shadow-xl">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-slate-700 px-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600">
-          <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    <aside className="fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white shadow-xl">
+      {/* Admin Panel Title */}
+      <div className="flex h-14 items-center gap-3 border-b border-slate-700 px-6">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
+          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
           </svg>
         </div>
         <div>
-          <h1 className="text-lg font-bold">RentWheels</h1>
-          <p className="text-xs text-slate-400">Admin Panel</p>
+          <h1 className="text-base font-bold">Admin Panel</h1>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="mt-6 px-4">
+      <nav className="mt-4 px-4">
         <p className="mb-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
           Menu
         </p>
