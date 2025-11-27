@@ -21,12 +21,15 @@ model User {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  bookings     Booking[]
-  reviews      Review[]
-  accounts     Account[]
-  sessions     Session[]
-  auditLogs    AuditLog[]   @relation("AuditLogPerformer")
-  permissions  UserPermission[]
+  bookings      Booking[]
+  reviews       Review[]
+  accounts      Account[]
+  sessions      Session[]
+  auditLogs     AuditLog[]   @relation("AuditLogPerformer")
+  permissions   UserPermission[]
+  notifications Notification[]
+  conversations ConversationParticipant[]
+  chatMessages  ChatMessage[]
 }
 
 model Account {
@@ -369,4 +372,118 @@ model AuditLog {
   @@index([userId])
   @@index([resource, resourceId])
   @@index([createdAt])
+}
+
+// ==================== NOTIFICATIONS ====================
+
+enum NotificationType {
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_REMINDER
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  REVIEW_RECEIVED
+  PROMOTION
+  SYSTEM
+  CHAT_MESSAGE
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  message     String           @db.Text
+  data        String?          @db.Text  // JSON string with additional data (e.g., bookingId, vehicleId)
+  read        Boolean          @default(false)
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+// ==================== LIVE CHAT ====================
+
+model Conversation {
+  id           String    @id @default(cuid())
+  title        String?   // Optional title for the conversation
+  type         ConversationType @default(SUPPORT)
+  status       ConversationStatus @default(OPEN)
+
+  // For support chats - link to booking if relevant
+  bookingId    String?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  closedAt     DateTime?
+
+  participants ConversationParticipant[]
+  messages     ChatMessage[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum ConversationType {
+  SUPPORT       // Customer support chat
+  BOOKING       // Chat about a specific booking
+  GENERAL       // General inquiry
+}
+
+enum ConversationStatus {
+  OPEN
+  WAITING       // Waiting for customer/admin response
+  RESOLVED
+  CLOSED
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String
+  role           ParticipantRole @default(CUSTOMER)
+  joinedAt       DateTime @default(now())
+  lastReadAt     DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+enum ParticipantRole {
+  CUSTOMER
+  SUPPORT
+  ADMIN
+}
+
+model ChatMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String   @db.Text
+  type           MessageType @default(TEXT)
+  metadata       String?  @db.Text  // JSON for file info, etc.
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM    // System messages like "User joined", "Conversation closed"
 }

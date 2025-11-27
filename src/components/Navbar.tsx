@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
+import NotificationBell from "./notifications/NotificationBell";
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -56,6 +57,9 @@ export default function Navbar() {
                     Admin
                   </Link>
                 )}
+
+                {/* Notification Bell */}
+                <NotificationBell />
 
                 {/* User Dropdown */}
                 <div className="relative" ref={userMenuRef}>

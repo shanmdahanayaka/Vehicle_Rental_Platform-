@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
+import { sendNotification, notifyAdmins, NotificationTemplates } from "@/lib/notifications";
 
 // Roles that can view all bookings
 const ADMIN_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN", "MANAGER"];
@@ -225,6 +226,22 @@ export async function POST(request: Request) {
           },
         },
       },
+    });
+
+    // Send notification to the user who created the booking
+    const vehicleName = `${vehicle.brand} ${vehicle.model}`;
+    const userNotification = NotificationTemplates.bookingCreated(booking.id, vehicleName);
+    await sendNotification({
+      userId: session.user.id,
+      ...userNotification,
+    });
+
+    // Notify all admins about the new booking
+    await notifyAdmins({
+      type: "BOOKING_CREATED",
+      title: "New Booking Created",
+      message: `A new booking for ${vehicleName} has been created by ${session.user.name || session.user.email}.`,
+      data: { bookingId: booking.id, userId: session.user.id },
     });
 
     return NextResponse.json(booking, { status: 201 });
