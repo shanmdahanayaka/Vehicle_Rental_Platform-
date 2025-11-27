@@ -38,14 +38,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Authorize the channel
-    const authResponse = pusherServer.authorizeChannel(socketId, channel, {
-      user_id: session.user.id,
-      user_info: {
-        name: session.user.name,
-        email: session.user.email,
-        role: session.user.role,
-      },
-    });
+    // For private channels, use authorizeChannel without user data
+    // For presence channels, include user data
+    const isPresenceChannel = channel.startsWith("presence-");
+
+    let authResponse;
+    if (isPresenceChannel) {
+      authResponse = pusherServer.authorizeChannel(socketId, channel, {
+        user_id: session.user.id,
+        user_info: {
+          name: session.user.name,
+          email: session.user.email,
+          role: session.user.role,
+        },
+      });
+    } else {
+      // Private channels don't need user data
+      authResponse = pusherServer.authorizeChannel(socketId, channel);
+    }
 
     return NextResponse.json(authResponse);
   } catch (error) {
