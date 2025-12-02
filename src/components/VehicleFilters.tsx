@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { currency } from "@/config/site";
 
 interface VehicleFiltersProps {
   params: {
@@ -220,12 +221,12 @@ export default function VehicleFilters({
           {/* Price Range */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Price Range (Rs/day)
+              Price Range ({currency.symbol}/day)
             </label>
             <div className="grid grid-cols-2 gap-3">
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-                  Rs.
+                  {currency.symbol}
                 </span>
                 <input
                   type="number"
@@ -238,7 +239,7 @@ export default function VehicleFilters({
               </div>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-                  Rs.
+                  {currency.symbol}
                 </span>
                 <input
                   type="number"

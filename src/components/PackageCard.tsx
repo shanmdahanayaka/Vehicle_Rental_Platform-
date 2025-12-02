@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatCurrency } from "@/config/site";
 
 interface PackageCardProps {
   id: string;
@@ -162,7 +163,7 @@ export default function PackageCard({
             {priceDisplay ? (
               <>
                 <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                  Rs.{priceDisplay.price.toLocaleString()}
+                  {formatCurrency(priceDisplay.price)}
                 </span>
                 {priceDisplay.suffix && (
                   <span className="text-slate-500 text-sm">{priceDisplay.suffix}</span>

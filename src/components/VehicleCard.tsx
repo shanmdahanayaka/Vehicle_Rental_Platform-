@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { formatCurrency } from "@/config/site";
 
 interface VehicleCardProps {
   id: string;
@@ -226,7 +227,7 @@ export default function VehicleCard({
         <div className="flex items-center justify-between pt-4 border-t border-slate-100">
           <div>
             <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-              Rs.{pricePerDay.toLocaleString()}
+              {formatCurrency(pricePerDay)}
             </span>
             <span className="text-slate-500 text-sm">/day</span>
           </div>

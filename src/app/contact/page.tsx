@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { contact, locations } from "@/config/site";
 
 const contactInfo = [
   {
     title: "Visit Our Office",
-    description: "123 Galle Road, Colombo 03, Sri Lanka",
+    description: contact.address.full,
     icon: (
       <svg
         className="w-6 h-6"
@@ -31,7 +32,7 @@ const contactInfo = [
   },
   {
     title: "Call Us",
-    description: "+94 11 234 5678 | +94 77 123 4567",
+    description: `${contact.phone.main} | ${contact.phone.mobile}`,
     icon: (
       <svg
         className="w-6 h-6"
@@ -50,7 +51,7 @@ const contactInfo = [
   },
   {
     title: "Email Us",
-    description: "info@rentwheels.lk | support@rentwheels.lk",
+    description: `${contact.email.general} | ${contact.email.support}`,
     icon: (
       <svg
         className="w-6 h-6"
@@ -69,7 +70,7 @@ const contactInfo = [
   },
   {
     title: "Working Hours",
-    description: "Mon - Sun: 6:00 AM - 10:00 PM",
+    description: contact.operatingHours.default,
     icon: (
       <svg
         className="w-6 h-6"
@@ -88,44 +89,13 @@ const contactInfo = [
   },
 ];
 
-const branches = [
-  {
-    city: "Colombo",
-    address: "123 Galle Road, Colombo 03",
-    phone: "+94 11 234 5678",
-    hours: "6:00 AM - 10:00 PM",
-  },
-  {
-    city: "Kandy",
-    address: "45 Peradeniya Road, Kandy",
-    phone: "+94 81 234 5678",
-    hours: "6:00 AM - 9:00 PM",
-  },
-  {
-    city: "Galle",
-    address: "78 Main Street, Galle Fort",
-    phone: "+94 91 234 5678",
-    hours: "7:00 AM - 9:00 PM",
-  },
-  {
-    city: "Negombo",
-    address: "12 Lewis Place, Negombo",
-    phone: "+94 31 234 5678",
-    hours: "5:00 AM - 11:00 PM",
-  },
-  {
-    city: "Bandaranaike Airport",
-    address: "Airport Road, Katunayake",
-    phone: "+94 11 225 5678",
-    hours: "24/7",
-  },
-  {
-    city: "Ella",
-    address: "Main Street, Ella",
-    phone: "+94 57 234 5678",
-    hours: "7:00 AM - 8:00 PM",
-  },
-];
+// Use branches from config
+const branches = locations.branches.map((branch) => ({
+  city: branch.name,
+  address: branch.address,
+  phone: branch.phone,
+  hours: branch.hours,
+}));
 
 const faqs = [
   {
@@ -422,14 +392,14 @@ export default function ContactPage() {
               </h2>
               <div className="rounded-2xl overflow-hidden shadow-lg h-[400px] bg-slate-200">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3960.798467128636!2d79.84820807499756!3d6.914682993087825!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae2596b3a1b1b1b%3A0x1b1b1b1b1b1b1b1b!2sGalle%20Road%2C%20Colombo%2C%20Sri%20Lanka!5e0!3m2!1sen!2sus!4v1234567890"
+                  src={contact.address.mapUrl}
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}
                   allowFullScreen
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
-                  title="RentWheels Office Location"
+                  title="Office Location"
                 />
               </div>
               <div className="mt-6 p-6 bg-white rounded-2xl shadow-lg">
@@ -457,13 +427,13 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-900 mb-1">
-                      Head Office - Colombo
+                      Head Office - {contact.address.city}
                     </h3>
                     <p className="text-slate-600 mb-2">
-                      123 Galle Road, Colombo 03, Sri Lanka
+                      {contact.address.full}
                     </p>
                     <p className="text-sm text-slate-500">
-                      Open daily: 6:00 AM - 10:00 PM
+                      Open daily: {contact.operatingHours.weekdays}
                     </p>
                   </div>
                 </div>

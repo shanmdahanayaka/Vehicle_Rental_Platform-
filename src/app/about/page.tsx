@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
+import { brand, stats as siteStats, team as siteTeam, milestones as siteMilestones } from "@/config/site";
 
 const stats = [
-  { number: "10+", label: "Years Experience" },
-  { number: "500+", label: "Vehicles in Fleet" },
-  { number: "50,000+", label: "Happy Customers" },
-  { number: "15+", label: "Locations Island-wide" },
+  { number: `${siteStats.yearsExperience}+`, label: "Years Experience" },
+  { number: `${siteStats.vehiclesInFleet}+`, label: "Vehicles in Fleet" },
+  { number: `${siteStats.happyCustomers.toLocaleString()}+`, label: "Happy Customers" },
+  { number: `${siteStats.locationsCount}+`, label: "Locations Island-wide" },
 ];
 
 const values = [
@@ -97,71 +98,28 @@ const values = [
   },
 ];
 
-const team = [
-  {
-    name: "Rajitha Perera",
-    role: "Founder & CEO",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
-    description: "20+ years in Sri Lankan tourism industry",
-  },
-  {
-    name: "Nalini Fernando",
-    role: "Operations Director",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop",
-    description: "Expert in fleet management and logistics",
-  },
-  {
-    name: "Kasun Silva",
-    role: "Customer Experience Head",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop",
-    description: "Passionate about customer satisfaction",
-  },
-  {
-    name: "Chamari Jayawardena",
-    role: "Marketing Director",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&h=300&fit=crop",
-    description: "Building the RentWheels brand story",
-  },
+// Team member placeholder images
+const teamImages = [
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&h=300&fit=crop",
 ];
 
-const milestones = [
-  {
-    year: "2014",
-    title: "The Beginning",
-    description:
-      "Started with just 5 vehicles in Colombo, driven by a passion to show tourists the beauty of Sri Lanka.",
-  },
-  {
-    year: "2016",
-    title: "Expanding Horizons",
-    description:
-      "Opened branches in Kandy and Galle. Fleet grew to 50 vehicles including SUVs and vans.",
-  },
-  {
-    year: "2018",
-    title: "Going Digital",
-    description:
-      "Launched online booking platform. Introduced 24/7 customer support and GPS tracking.",
-  },
-  {
-    year: "2020",
-    title: "Resilience & Growth",
-    description:
-      "Adapted to challenges, introduced sanitization protocols. Reached 200 vehicles.",
-  },
-  {
-    year: "2022",
-    title: "Island-wide Presence",
-    description:
-      "Expanded to 15 locations across Sri Lanka. Introduced luxury and eco-friendly vehicle options.",
-  },
-  {
-    year: "2024",
-    title: "Leading the Industry",
-    description:
-      "500+ vehicles, award-winning service, and thousands of happy customers exploring Sri Lanka.",
-  },
-];
+// Use team from config with placeholder images
+const team = siteTeam.map((member, index) => ({
+  name: member.name,
+  role: member.role,
+  image: teamImages[index] || teamImages[0],
+  description: member.description,
+}));
+
+// Use milestones from config
+const milestones = siteMilestones.map((m) => ({
+  year: m.year.toString(),
+  title: m.title,
+  description: m.description,
+}));
 
 export default function AboutPage() {
   return (
@@ -185,8 +143,8 @@ export default function AboutPage() {
               </span>
             </h1>
             <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-              For over a decade, RentWheels has been helping travelers discover
-              the magic of Sri Lanka. From pristine beaches to misty mountains,
+              For over a decade, {brand.name} has been helping travelers discover
+              the magic of {brand.country}. From pristine beaches to misty mountains,
               we make every journey memorable.
             </p>
           </div>
@@ -222,14 +180,14 @@ export default function AboutPage() {
               </h2>
               <div className="space-y-4 text-slate-600">
                 <p>
-                  RentWheels was born from a simple idea: everyone deserves to
-                  explore Sri Lanka on their own terms. Founded in 2014 by a
+                  {brand.name} was born from a simple idea: everyone deserves to
+                  explore {brand.country} on their own terms. Founded in {brand.foundedYear} by a
                   group of passionate locals, we started with just five vehicles
                   and a dream.
                 </p>
                 <p>
-                  Today, we&apos;re proud to be Sri Lanka&apos;s most trusted vehicle
-                  rental company, serving over 50,000 customers annually. But
+                  Today, we&apos;re proud to be {brand.country}&apos;s most trusted vehicle
+                  rental company, serving over {siteStats.happyCustomers.toLocaleString()} customers annually. But
                   our mission remains the same – to make travel accessible,
                   affordable, and unforgettable.
                 </p>
@@ -378,7 +336,7 @@ export default function AboutPage() {
               Our Team
             </span>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-              Meet the People Behind RentWheels
+              Meet the People Behind {brand.name}
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto">
               Our dedicated team works tirelessly to ensure you have the best
@@ -420,8 +378,8 @@ export default function AboutPage() {
             Ready to Start Your Journey?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of happy travelers who have discovered Sri Lanka with
-            RentWheels.
+            Join thousands of happy travelers who have discovered {brand.country} with
+            {brand.name}.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

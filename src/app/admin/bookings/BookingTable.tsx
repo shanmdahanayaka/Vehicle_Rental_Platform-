@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatCurrency } from "@/config/site";
 
 interface Booking {
   id: string;
@@ -114,7 +115,7 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
         <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
           <p className="text-sm text-slate-500">Revenue</p>
           <p className="text-2xl font-bold text-blue-600">
-            ${stats.revenue.toLocaleString()}
+            {formatCurrency(stats.revenue)}
           </p>
         </div>
       </div>
@@ -234,7 +235,7 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <p className="text-lg font-bold text-slate-900">
-                        ${booking.totalPrice.toFixed(2)}
+                        {formatCurrency(booking.totalPrice)}
                       </p>
                       {booking.payment && (
                         <p
@@ -350,7 +351,7 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
               <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
                 <span className="font-medium">Total Amount</span>
                 <span className="text-2xl font-bold">
-                  ${selectedBooking.totalPrice.toFixed(2)}
+                  {formatCurrency(selectedBooking.totalPrice)}
                 </span>
               </div>
 

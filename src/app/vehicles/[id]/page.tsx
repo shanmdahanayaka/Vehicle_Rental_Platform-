@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import BookingForm from "./BookingForm";
+import { formatCurrency } from "@/config/site";
 
 const POLICY_CATEGORY_ICONS: Record<string, string> = {
   cancellation: "🚫",
@@ -238,7 +239,7 @@ export default async function VehicleDetailPage({
               </div>
               <div className="text-right">
                 <span className="text-3xl font-bold text-blue-600">
-                  ${vehicle.pricePerDay}
+                  {formatCurrency(vehicle.pricePerDay)}
                 </span>
                 <span className="text-gray-500">/day</span>
               </div>
@@ -332,15 +333,15 @@ export default async function VehicleDetailPage({
                       <div>
                         {pkg.basePrice ? (
                           <span className="text-lg font-bold text-blue-600">
-                            Rs.{pkg.basePrice.toLocaleString()}
+                            {formatCurrency(pkg.basePrice)}
                           </span>
                         ) : pkg.pricePerDay ? (
                           <span className="text-lg font-bold text-blue-600">
-                            Rs.{pkg.pricePerDay.toLocaleString()}<span className="text-sm font-normal text-gray-500">/day</span>
+                            {formatCurrency(pkg.pricePerDay)}<span className="text-sm font-normal text-gray-500">/day</span>
                           </span>
                         ) : pkg.pricePerHour ? (
                           <span className="text-lg font-bold text-blue-600">
-                            Rs.{pkg.pricePerHour.toLocaleString()}<span className="text-sm font-normal text-gray-500">/hour</span>
+                            {formatCurrency(pkg.pricePerHour)}<span className="text-sm font-normal text-gray-500">/hour</span>
                           </span>
                         ) : (
                           <span className="text-sm text-gray-500">Custom pricing</span>

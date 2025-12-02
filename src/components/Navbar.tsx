@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import NotificationBell from "./notifications/NotificationBell";
+import { brand } from "@/config/site";
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -33,7 +34,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href={isAdminRoute ? "/admin" : "/"} className="text-2xl font-bold text-blue-600">
-              {isAdminRoute ? "Admin Dashboard" : "RentWheels"}
+              {isAdminRoute ? "Admin Dashboard" : brand.name}
             </Link>
           </div>
 

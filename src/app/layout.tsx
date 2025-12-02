@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import LayoutWrapper from "@/components/LayoutWrapper";
+import { seo, brand } from "@/config/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +16,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RentWheels - Vehicle Rental Platform",
-  description: "Find and rent the perfect vehicle for any occasion",
+  title: seo.title,
+  description: seo.description,
+  keywords: seo.keywords,
+  openGraph: {
+    title: seo.title,
+    description: seo.description,
+    siteName: brand.name,
+    type: "website",
+  },
 };
 
 export default function RootLayout({

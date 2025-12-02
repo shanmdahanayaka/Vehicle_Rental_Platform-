@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import VehicleCard from "@/components/VehicleCard";
+import { formatCurrency } from "@/config/site";
 
 const typeLabels: Record<string, string> = {
   DAILY: "Daily Rental",
@@ -226,7 +227,7 @@ export default async function PackageDetailPage({
                 <>
                   <div className="flex items-baseline gap-2 mb-6">
                     <span className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">
-                      Rs.{priceInfo.price.toLocaleString()}
+                      {formatCurrency(priceInfo.price)}
                     </span>
                     <span className="text-slate-500 text-lg">{priceInfo.suffix}</span>
                   </div>

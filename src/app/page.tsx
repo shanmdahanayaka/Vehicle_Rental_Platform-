@@ -3,6 +3,7 @@ import VehicleCard from "@/components/VehicleCard";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
+import { brand, stats as siteStats, locations, testimonials as siteTestimonials, features as siteFeatures } from "@/config/site";
 
 async function getFeaturedVehicles() {
   try {
@@ -48,37 +49,37 @@ const vehicleTypes = [
     name: "Cars",
     icon: "🚗",
     description: "Sedans, SUVs & Hatchbacks",
-    count: "200+",
+    count: `${siteStats.vehicleTypes.cars}+`,
   },
   {
     name: "Vans",
     icon: "🚐",
     description: "Perfect for groups",
-    count: "50+",
+    count: `${siteStats.vehicleTypes.vans}+`,
   },
   {
     name: "SUVs",
     icon: "🚙",
     description: "Adventure ready",
-    count: "80+",
+    count: `${siteStats.vehicleTypes.suvs}+`,
   },
   {
     name: "Luxury",
     icon: "✨",
     description: "Premium experience",
-    count: "30+",
+    count: `${siteStats.vehicleTypes.luxury}+`,
   },
   {
     name: "Bikes",
     icon: "🏍️",
     description: "Scooters & Motorcycles",
-    count: "100+",
+    count: `${siteStats.vehicleTypes.motorcycles}+`,
   },
   {
     name: "Tuk Tuks",
     icon: "🛺",
     description: "Local experience",
-    count: "40+",
+    count: `${siteStats.vehicleTypes.tuktuks}+`,
   },
 ];
 
@@ -116,95 +117,45 @@ const howItWorks = [
   },
 ];
 
-const destinations = [
-  {
-    name: "Colombo",
-    image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400",
-    description: "Capital city vibes",
-  },
-  {
-    name: "Kandy",
-    image: "https://images.unsplash.com/photo-1586016413664-864c0dd76f53?w=400",
-    description: "Cultural heritage",
-  },
-  {
-    name: "Galle",
-    image: "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=400",
-    description: "Colonial charm",
-  },
-  {
-    name: "Ella",
-    image: "https://images.unsplash.com/photo-1546708770-599a11f5498f?w=400",
-    description: "Mountain paradise",
-  },
-  {
-    name: "Sigiriya",
-    image: "https://images.unsplash.com/photo-1588598198321-9735fd52bd5d?w=400",
-    description: "Ancient wonder",
-  },
-  {
-    name: "Mirissa",
-    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400",
-    description: "Beach heaven",
-  },
-];
+// Destination images mapping - update as needed
+const destinationImages: Record<string, { image: string; description: string }> = {
+  Colombo: { image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400", description: "Capital city vibes" },
+  Kandy: { image: "https://images.unsplash.com/photo-1586016413664-864c0dd76f53?w=400", description: "Cultural heritage" },
+  Galle: { image: "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=400", description: "Colonial charm" },
+  Ella: { image: "https://images.unsplash.com/photo-1546708770-599a11f5498f?w=400", description: "Mountain paradise" },
+  Sigiriya: { image: "https://images.unsplash.com/photo-1588598198321-9735fd52bd5d?w=400", description: "Ancient wonder" },
+  Mirissa: { image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400", description: "Beach heaven" },
+};
 
-const testimonials = [
-  {
-    name: "Kasun Perera",
-    role: "Tourist from Australia",
-    image: "https://randomuser.me/api/portraits/men/1.jpg",
-    content: "Amazing service! The car was in perfect condition and the pickup at Colombo airport was seamless. Highly recommend for exploring Sri Lanka.",
-    rating: 5,
-  },
-  {
-    name: "Sarah Johnson",
-    role: "Travel Blogger",
-    image: "https://randomuser.me/api/portraits/women/2.jpg",
-    content: "Best car rental experience in Sri Lanka. The team helped us plan our route from Colombo to Ella. Will definitely use again!",
-    rating: 5,
-  },
-  {
-    name: "Nuwan Silva",
-    role: "Business Traveler",
-    image: "https://randomuser.me/api/portraits/men/3.jpg",
-    content: "Professional service with well-maintained vehicles. The 24/7 support gave us peace of mind during our trip across the island.",
-    rating: 5,
-  },
-];
+// Generate destinations from config
+const destinations = locations.popular.map((location) => ({
+  name: location,
+  image: destinationImages[location]?.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400",
+  description: destinationImages[location]?.description || "Explore this destination",
+}));
 
-const features = [
-  {
-    title: "Airport Pickup",
-    description: "Free pickup and drop-off at Bandaranaike International Airport",
-    icon: "✈️",
-  },
-  {
-    title: "GPS Navigation",
-    description: "All vehicles equipped with GPS for easy navigation",
-    icon: "📍",
-  },
-  {
-    title: "Full Insurance",
-    description: "Comprehensive coverage for worry-free travel",
-    icon: "🛡️",
-  },
-  {
-    title: "24/7 Support",
-    description: "Round-the-clock roadside assistance",
-    icon: "📞",
-  },
-  {
-    title: "Flexible Rental",
-    description: "Daily, weekly, or monthly rental options",
-    icon: "📅",
-  },
-  {
-    title: "No Hidden Fees",
-    description: "Transparent pricing with no surprises",
-    icon: "💰",
-  },
-];
+// Use testimonials from config with placeholder images
+const testimonials = siteTestimonials.map((t, index) => ({
+  ...t,
+  image: `https://randomuser.me/api/portraits/${index % 2 === 0 ? 'men' : 'women'}/${index + 1}.jpg`,
+}));
+
+// Feature icons mapping
+const featureIcons: Record<string, string> = {
+  "Airport Pickup": "✈️",
+  "24/7 Support": "📞",
+  "Full Insurance": "🛡️",
+  "Flexible Rental": "📅",
+  "Free Cancellation": "❌",
+  "GPS Navigation": "📍",
+};
+
+// Use features from config with icons
+const features = siteFeatures.map((f) => ({
+  title: f.title,
+  description: f.description,
+  icon: featureIcons[f.title] || "✨",
+}));
 
 export default async function Home() {
   const featuredVehicles = await getFeaturedVehicles();
@@ -401,7 +352,7 @@ export default async function Home() {
           <div className="text-center mb-12">
             <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Why Choose Us</span>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mt-2 mb-4">
-              The RentWheels Advantage
+              The {brand.name} Advantage
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto">
               Experience the best vehicle rental service in Sri Lanka

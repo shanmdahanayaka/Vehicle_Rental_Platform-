@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { formatCurrency } from "@/config/site";
 
 async function getUserBookings(userId: string) {
   const bookings = await prisma.booking.findMany({
@@ -213,7 +214,7 @@ export default async function BookingsPage() {
                         <div className="text-right">
                           <p className="text-sm text-slate-500">Total Price</p>
                           <p className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                            Rs. {booking.totalPrice.toLocaleString()}
+                            {formatCurrency(booking.totalPrice)}
                           </p>
                           <p className="text-xs text-slate-400">{days} day{days !== 1 ? "s" : ""}</p>
                         </div>

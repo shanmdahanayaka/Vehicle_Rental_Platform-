@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { formatCurrency } from "@/config/site";
 
 async function getStats() {
   const [
@@ -53,7 +54,7 @@ export default async function AdminDashboard() {
   const statCards = [
     {
       title: "Total Revenue",
-      value: `$${stats.totalRevenue.toLocaleString()}`,
+      value: formatCurrency(stats.totalRevenue),
       change: "+12.5%",
       changeType: "positive",
       icon: (
@@ -238,7 +239,7 @@ export default async function AdminDashboard() {
                       </td>
                       <td className="py-4 text-right">
                         <p className="font-semibold text-slate-900">
-                          ${booking.totalPrice.toFixed(2)}
+                          {formatCurrency(booking.totalPrice)}
                         </p>
                       </td>
                     </tr>

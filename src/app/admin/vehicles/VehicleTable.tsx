@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
+import { formatCurrency, currency } from "@/config/site";
 
 interface Vehicle {
   id: string;
@@ -316,7 +317,7 @@ export default function VehicleTable({ initialVehicles }: VehicleTableProps) {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-lg font-bold text-slate-900">
-                          ${vehicle.pricePerDay}
+                          {formatCurrency(vehicle.pricePerDay)}
                         </p>
                         <p className="text-xs text-slate-500">per day</p>
                       </td>
@@ -561,7 +562,7 @@ function VehicleModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Price/Day ($)
+                Price/Day ({currency.symbol})
               </label>
               <input
                 type="number"
@@ -672,36 +673,11 @@ function VehicleModal({
             />
           </div>
 
-          {/* Image URL */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Image URL
-            </label>
-            <input
-              type="url"
-              value={(() => {
-                try {
-                  const parsed = JSON.parse(formData.images || "[]");
-                  return Array.isArray(parsed) ? parsed[0] || "" : formData.images;
-                } catch {
-                  return formData.images;
-                }
-              })()}
-              onChange={(e) => {
-                const url = e.target.value.trim();
-                // Store as JSON array for consistency
-                setFormData({
-                  ...formData,
-                  images: url ? JSON.stringify([url]) : "[]"
-                });
-              }}
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              placeholder="https://images.unsplash.com/photo-..."
-            />
-            <p className="mt-1 text-xs text-slate-500">
-              Enter a direct image URL (e.g., from Unsplash)
-            </p>
-          </div>
+          {/* Image Upload Section */}
+          <ImageUploader
+            images={formData.images}
+            onImagesChange={(images) => setFormData({ ...formData, images })}
+          />
 
           {/* Toggles */}
           <div className="flex items-center gap-6">
@@ -748,6 +724,272 @@ function VehicleModal({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// Image Uploader Component
+function ImageUploader({
+  images,
+  onImagesChange,
+}: {
+  images: string;
+  onImagesChange: (images: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [activeTab, setActiveTab] = useState<"upload" | "url">("upload");
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Parse current images
+  const getImageList = (): string[] => {
+    try {
+      const parsed = JSON.parse(images || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return images && images.startsWith("http") ? [images] : [];
+    }
+  };
+
+  const imageList = getImageList();
+
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    const newUrls: string[] = [];
+
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", "vehicles");
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          newUrls.push(data.url);
+        }
+      } catch (error) {
+        console.error("Upload failed:", error);
+      }
+    }
+
+    if (newUrls.length > 0) {
+      const updatedImages = [...imageList, ...newUrls];
+      onImagesChange(JSON.stringify(updatedImages));
+    }
+
+    setUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleAddUrl = () => {
+    const url = urlInput.trim();
+    if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+      const updatedImages = [...imageList, url];
+      onImagesChange(JSON.stringify(updatedImages));
+      setUrlInput("");
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const updatedImages = imageList.filter((_, i) => i !== index);
+    onImagesChange(JSON.stringify(updatedImages));
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    handleFileUpload(e.dataTransfer.files);
+  };
+
+  return (
+    <div className="space-y-4">
+      <label className="block text-sm font-medium text-slate-700">
+        Vehicle Images
+      </label>
+
+      {/* Tabs */}
+      <div className="flex rounded-xl bg-slate-100 p-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("upload")}
+          className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
+            activeTab === "upload"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Upload Image
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("url")}
+          className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
+            activeTab === "url"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Add URL
+        </button>
+      </div>
+
+      {/* Upload Tab */}
+      {activeTab === "upload" && (
+        <div
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+          className={`relative rounded-xl border-2 border-dashed p-8 text-center transition ${
+            dragActive
+              ? "border-blue-500 bg-blue-50"
+              : "border-slate-200 hover:border-slate-300"
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => handleFileUpload(e.target.files)}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          />
+          <div className="flex flex-col items-center">
+            {uploading ? (
+              <>
+                <svg
+                  className="h-10 w-10 animate-spin text-blue-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <p className="mt-2 text-sm text-slate-600">Uploading...</p>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="h-10 w-10 text-slate-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  Drop images here or click to upload
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  JPG, PNG, WebP or GIF (max 5MB each)
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* URL Tab */}
+      {activeTab === "url" && (
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            placeholder="https://images.unsplash.com/photo-..."
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddUrl();
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleAddUrl}
+            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition"
+          >
+            Add
+          </button>
+        </div>
+      )}
+
+      {/* Image Preview Grid */}
+      {imageList.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          {imageList.map((url, index) => (
+            <div
+              key={index}
+              className="group relative aspect-video overflow-hidden rounded-xl bg-slate-100"
+            >
+              <Image
+                src={url}
+                alt={`Vehicle image ${index + 1}`}
+                fill
+                className="object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => handleRemoveImage(index)}
+                className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white opacity-0 transition hover:bg-red-600 group-hover:opacity-100"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              {index === 0 && (
+                <span className="absolute left-2 top-2 rounded-full bg-blue-500 px-2 py-0.5 text-xs font-medium text-white">
+                  Main
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {imageList.length === 0 && (
+        <p className="text-center text-sm text-slate-500 py-2">
+          No images added yet. Upload or add image URLs above.
+        </p>
+      )}
     </div>
   );
 }

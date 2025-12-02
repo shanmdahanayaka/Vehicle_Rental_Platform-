@@ -3,6 +3,7 @@ import VehicleCard from "@/components/VehicleCard";
 import VehicleFilters from "@/components/VehicleFilters";
 import VehicleSortDropdown from "@/components/VehicleSortDropdown";
 import Link from "next/link";
+import { currency } from "@/config/site";
 
 interface SearchParams {
   type?: string;
@@ -318,7 +319,7 @@ export default async function VehiclesPage({
                 )}
                 {(params.minPrice || params.maxPrice) && (
                   <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm">
-                    Price: Rs.{params.minPrice || "0"} - Rs.
+                    Price: {currency.symbol}{params.minPrice || "0"} - {currency.symbol}
                     {params.maxPrice || "∞"}
                     <Link
                       href={`/vehicles?${new URLSearchParams(

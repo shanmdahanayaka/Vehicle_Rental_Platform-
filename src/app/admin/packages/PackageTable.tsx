@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { PackageType } from "@prisma/client";
 import { useUI } from "@/components/ui/UIProvider";
+import { formatCurrency, currency } from "@/config/site";
 
 interface Policy {
   id: string;
@@ -237,9 +238,9 @@ export default function PackageTable() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-700">
-                      {pkg.basePrice && <p><span className="text-slate-500">Base:</span> <span className="font-medium text-slate-900">${pkg.basePrice}</span></p>}
-                      {pkg.pricePerDay && <p><span className="text-slate-500">Per Day:</span> <span className="font-medium text-slate-900">${pkg.pricePerDay}</span></p>}
-                      {pkg.pricePerHour && <p><span className="text-slate-500">Per Hour:</span> <span className="font-medium text-slate-900">${pkg.pricePerHour}</span></p>}
+                      {pkg.basePrice && <p><span className="text-slate-500">Base:</span> <span className="font-medium text-slate-900">{formatCurrency(pkg.basePrice)}</span></p>}
+                      {pkg.pricePerDay && <p><span className="text-slate-500">Per Day:</span> <span className="font-medium text-slate-900">{formatCurrency(pkg.pricePerDay)}</span></p>}
+                      {pkg.pricePerHour && <p><span className="text-slate-500">Per Hour:</span> <span className="font-medium text-slate-900">{formatCurrency(pkg.pricePerHour)}</span></p>}
                       {pkg.discount && <p className="text-green-600 font-medium">{pkg.discount}% off</p>}
                     </td>
                     <td className="px-6 py-4">
