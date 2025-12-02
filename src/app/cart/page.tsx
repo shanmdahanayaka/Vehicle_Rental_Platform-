@@ -256,12 +256,18 @@ export default function CartPage() {
                             <p className="font-medium text-slate-900">
                               {new Date(item.startDate).toLocaleDateString()}
                             </p>
+                            <p className="text-xs text-blue-600 font-medium">
+                              {new Date(item.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
                             <p className="text-xs text-slate-500">{item.pickupLocation}</p>
                           </div>
                           <div>
                             <p className="text-slate-500">Return</p>
                             <p className="font-medium text-slate-900">
                               {new Date(item.endDate).toLocaleDateString()}
+                            </p>
+                            <p className="text-xs text-blue-600 font-medium">
+                              {new Date(item.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
                             <p className="text-xs text-slate-500">{item.dropoffLocation}</p>
                           </div>

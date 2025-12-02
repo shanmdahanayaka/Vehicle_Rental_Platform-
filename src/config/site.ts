@@ -366,6 +366,102 @@ export const businessRules = {
 };
 
 // ============================================
+// MILEAGE CONFIGURATION
+// ============================================
+export const mileageConfig = {
+  // Free mileage per day (in km)
+  freeMileagePerDay: 200,
+
+  // Extra mileage rate (cost per km beyond free limit)
+  extraMileageRate: 50, // In local currency per km
+
+  // Unlimited mileage option
+  unlimitedMileagePerDay: 1500, // Additional charge per day for unlimited
+
+  // Maximum daily mileage for standard bookings
+  maxDailyMileage: 500,
+};
+
+// ============================================
+// FUEL LEVEL OPTIONS
+// ============================================
+export const fuelLevels = [
+  { value: "FULL", label: "Full", percentage: 100 },
+  { value: "THREE_QUARTER", label: "3/4", percentage: 75 },
+  { value: "HALF", label: "1/2", percentage: 50 },
+  { value: "QUARTER", label: "1/4", percentage: 25 },
+  { value: "EMPTY", label: "Empty", percentage: 0 },
+];
+
+// ============================================
+// PAYMENT METHODS
+// ============================================
+export const paymentMethods = [
+  { value: "CASH", label: "Cash" },
+  { value: "CARD", label: "Card (Credit/Debit)" },
+  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+  { value: "ONLINE", label: "Online Payment" },
+  { value: "CHEQUE", label: "Cheque" },
+];
+
+// ============================================
+// DOCUMENT TYPES
+// ============================================
+export const documentTypes = [
+  { value: "ID_CARD", label: "National ID / Passport" },
+  { value: "DRIVING_LICENSE", label: "Driving License" },
+  { value: "PROOF_OF_ADDRESS", label: "Proof of Address" },
+  { value: "VEHICLE_PHOTO", label: "Vehicle Photo" },
+  { value: "DAMAGE_PHOTO", label: "Damage Photo" },
+  { value: "ODOMETER_PHOTO", label: "Odometer Photo" },
+  { value: "SIGNATURE", label: "Customer Signature" },
+  { value: "CONTRACT", label: "Rental Contract" },
+  { value: "OTHER", label: "Other Document" },
+];
+
+// ============================================
+// INVOICE CONFIGURATION
+// ============================================
+export const invoiceConfig = {
+  // Tax rate (percentage)
+  taxRate: 0, // Set to 0 for no tax, or e.g., 15 for 15% VAT
+  taxName: "VAT",
+
+  // Invoice number prefix
+  invoicePrefix: "INV",
+
+  // Payment terms (days)
+  paymentTermsDays: 7,
+
+  // Company details for invoice
+  companyDetails: {
+    name: brand.name,
+    address: contact.address.full,
+    phone: contact.phone.main,
+    email: contact.email.general,
+    registrationNumber: "", // Business registration number
+    taxId: "", // Tax ID / VAT number
+  },
+
+  // Bank details for payment
+  bankDetails: {
+    bankName: "Commercial Bank",
+    accountName: brand.name,
+    accountNumber: "1234567890",
+    branchCode: "001",
+    swiftCode: "CCEYLKLX",
+  },
+
+  // Terms and conditions
+  defaultTerms: `
+1. Payment is due within ${7} days of invoice date.
+2. Late payments may incur additional charges.
+3. All rates are in ${currency.code}.
+4. For any disputes, please contact us within 7 days.
+  `.trim(),
+};
+
+// ============================================
 // QUICK ACCESS - Combined Config Export
 // ============================================
 const siteConfig = {
@@ -382,6 +478,11 @@ const siteConfig = {
   seo,
   developer,
   businessRules,
+  mileageConfig,
+  fuelLevels,
+  paymentMethods,
+  documentTypes,
+  invoiceConfig,
   // Helper functions
   formatCurrency,
   formatPrice,

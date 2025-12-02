@@ -21,10 +21,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file type
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+    const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+    const allowedDocTypes = ["application/pdf"];
+    const allowedTypes = [...allowedImageTypes, ...allowedDocTypes];
+
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: "Invalid file type. Allowed: JPG, PNG, WebP, GIF" },
+        { error: "Invalid file type. Allowed: JPG, PNG, WebP, GIF, PDF" },
         { status: 400 }
       );
     }
@@ -91,7 +94,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+    const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+    const allowedDocTypes = ["application/pdf"];
+    const allowedTypes = [...allowedImageTypes, ...allowedDocTypes];
     const maxSize = 5 * 1024 * 1024; // 5MB
     const uploadedUrls: string[] = [];
 

@@ -4,6 +4,22 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { formatCurrency } from "@/config/site";
+import CancelBookingButton from "@/components/CancelBookingButton";
+
+// Helper function to parse images string to array
+function parseImages(images: string | null): string[] {
+  if (!images) return [];
+  try {
+    const parsed = JSON.parse(images);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    // If not valid JSON, check if it's a URL string
+    if (images.startsWith("http") || images.startsWith("/")) {
+      return images.split(",").map((url) => url.trim()).filter(Boolean);
+    }
+    return [];
+  }
+}
 
 async function getUserBookings(userId: string) {
   const bookings = await prisma.booking.findMany({
@@ -21,6 +37,8 @@ async function getUserBookings(userId: string) {
     vehicle: {
       ...booking.vehicle,
       pricePerDay: Number(booking.vehicle.pricePerDay),
+      // Parse images from JSON string to array
+      images: parseImages(booking.vehicle.images),
     },
   }));
 }
@@ -28,10 +46,10 @@ async function getUserBookings(userId: string) {
 async function getBookingStats(userId: string) {
   const total = await prisma.booking.count({ where: { userId } });
   const active = await prisma.booking.count({
-    where: { userId, status: { in: ["CONFIRMED", "ACTIVE"] } },
+    where: { userId, status: { in: ["CONFIRMED", "COLLECTED"] } },
   });
   const completed = await prisma.booking.count({
-    where: { userId, status: "COMPLETED" },
+    where: { userId, status: { in: ["COMPLETED", "INVOICED", "PAID"] } },
   });
   return { total, active, completed };
 }
@@ -68,10 +86,10 @@ export default async function BookingsPage() {
             </svg>
           ),
         };
-      case "ACTIVE":
+      case "COLLECTED":
         return {
-          bg: "bg-green-100",
-          text: "text-green-700",
+          bg: "bg-emerald-100",
+          text: "text-emerald-700",
           icon: (
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -80,11 +98,31 @@ export default async function BookingsPage() {
         };
       case "COMPLETED":
         return {
-          bg: "bg-slate-100",
-          text: "text-slate-700",
+          bg: "bg-purple-100",
+          text: "text-purple-700",
           icon: (
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ),
+        };
+      case "INVOICED":
+        return {
+          bg: "bg-orange-100",
+          text: "text-orange-700",
+          icon: (
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          ),
+        };
+      case "PAID":
+        return {
+          bg: "bg-green-100",
+          text: "text-green-700",
+          icon: (
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           ),
         };
@@ -236,6 +274,9 @@ export default async function BookingsPage() {
                               year: "numeric",
                             })}
                           </p>
+                          <p className="text-xs text-blue-600 font-medium">
+                            {new Date(booking.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
                         </div>
                         <div>
                           <div className="flex items-center gap-2 text-slate-400 mb-1">
@@ -250,6 +291,9 @@ export default async function BookingsPage() {
                               day: "numeric",
                               year: "numeric",
                             })}
+                          </p>
+                          <p className="text-xs text-blue-600 font-medium">
+                            {new Date(booking.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
                         <div>
@@ -298,10 +342,11 @@ export default async function BookingsPage() {
                           >
                             View Vehicle
                           </Link>
-                          {booking.status === "PENDING" && (
-                            <button className="text-sm font-medium text-red-500 hover:text-red-700 transition-colors">
-                              Cancel Booking
-                            </button>
+                          {(booking.status === "PENDING" || booking.status === "CONFIRMED") && (
+                            <CancelBookingButton
+                              bookingId={booking.id}
+                              vehicleName={booking.vehicle.name}
+                            />
                           )}
                           {booking.status === "COMPLETED" && (
                             <Link

@@ -109,10 +109,59 @@ model Booking {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  // === CONFIRMATION DETAILS ===
+  confirmedAt       DateTime?
+  confirmedBy       String?        // Admin user ID who confirmed
+  advanceAmount     Decimal?       @db.Decimal(10, 2)
+  advancePaid       Boolean        @default(false)
+  advancePaidAt     DateTime?
+  advancePaymentMethod String?     // Cash, Card, Bank Transfer, etc.
+  confirmationNotes String?        @db.Text
+
+  // === COLLECTION DETAILS ===
+  collectedAt       DateTime?
+  collectionOdometer Int?          // Odometer reading at collection
+  collectionFuelLevel String?      // Full, 3/4, 1/2, 1/4, Empty
+  collectionNotes   String?        @db.Text
+  collectedBy       String?        // Admin user ID who processed collection
+
+  // === RETURN/COMPLETION DETAILS ===
+  returnedAt        DateTime?
+  returnOdometer    Int?           // Odometer reading at return
+  returnFuelLevel   String?        // Full, 3/4, 1/2, 1/4, Empty
+  returnNotes       String?        @db.Text
+  returnedBy        String?        // Admin user ID who processed return
+
+  // === MILEAGE CALCULATION ===
+  freeMileage       Int?           // Free mileage allowed (from config or override)
+  extraMileageRate  Decimal?       @db.Decimal(10, 2)  // Cost per extra km
+  totalMileage      Int?           // Calculated: returnOdometer - collectionOdometer
+  extraMileage      Int?           // Calculated: totalMileage - freeMileage (if > 0)
+  extraMileageCost  Decimal?       @db.Decimal(10, 2)
+
+  // === ADDITIONAL CHARGES ===
+  fuelCharge        Decimal?       @db.Decimal(10, 2)
+  damageCharge      Decimal?       @db.Decimal(10, 2)
+  lateReturnCharge  Decimal?       @db.Decimal(10, 2)
+  otherCharges      Decimal?       @db.Decimal(10, 2)
+  otherChargesNote  String?        @db.Text
+
+  // === FINAL AMOUNTS ===
+  discountAmount    Decimal?       @db.Decimal(10, 2)
+  discountReason    String?
+  finalAmount       Decimal?       @db.Decimal(10, 2)  // Total after all calculations
+  balanceDue        Decimal?       @db.Decimal(10, 2)  // finalAmount - advanceAmount
+
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   vehicle  Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   payment  Payment?
   packages BookingPackage[]
+  documents BookingDocument[]
+  invoice   Invoice?
+
+  @@index([status])
+  @@index([userId])
+  @@index([vehicleId])
 }
 
 model Payment {
@@ -178,11 +227,13 @@ enum FuelType {
 }
 
 enum BookingStatus {
-  PENDING
-  CONFIRMED
-  ACTIVE
-  COMPLETED
-  CANCELLED
+  PENDING      // Initial status when user creates booking
+  CONFIRMED    // Admin confirmed, advance payment collected
+  COLLECTED    // User picked up vehicle
+  COMPLETED    // User returned vehicle
+  INVOICED     // Invoice generated
+  PAID         // Payment completed
+  CANCELLED    // Booking cancelled
 }
 
 enum PaymentStatus {
@@ -526,4 +577,142 @@ model CartItem {
 
   @@unique([userId, vehicleId])
   @@index([userId])
+}
+
+// ==================== BOOKING DOCUMENTS ====================
+
+enum DocumentType {
+  ID_CARD           // National ID / Passport
+  DRIVING_LICENSE   // Driving license
+  PROOF_OF_ADDRESS  // Utility bill, bank statement, etc.
+  VEHICLE_PHOTO     // Photo of vehicle at collection/return
+  DAMAGE_PHOTO      // Photo of any damage
+  ODOMETER_PHOTO    // Photo of odometer reading
+  SIGNATURE         // Customer signature
+  CONTRACT          // Rental agreement/contract
+  OTHER             // Any other document
+}
+
+enum DocumentStage {
+  CONFIRMATION      // Documents collected at booking confirmation
+  COLLECTION        // Documents collected at vehicle pickup
+  RETURN            // Documents collected at vehicle return
+}
+
+model BookingDocument {
+  id          String        @id @default(cuid())
+  bookingId   String
+  type        DocumentType
+  stage       DocumentStage @default(CONFIRMATION)
+  title       String        // e.g., "Front of ID Card", "Driver License"
+  description String?       @db.Text
+  fileUrl     String        @db.Text  // URL to uploaded file
+  fileName    String        // Original file name
+  fileSize    Int?          // File size in bytes
+  mimeType    String?       // e.g., "image/jpeg", "application/pdf"
+  uploadedBy  String        // Admin user ID who uploaded
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([type])
+  @@index([stage])
+}
+
+// ==================== INVOICES ====================
+
+enum InvoiceStatus {
+  DRAFT             // Invoice created but not finalized
+  ISSUED            // Invoice issued to customer
+  PARTIALLY_PAID    // Some payment received
+  PAID              // Fully paid
+  OVERDUE           // Payment overdue
+  CANCELLED         // Invoice cancelled
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  bookingId       String        @unique
+  invoiceNumber   String        @unique  // e.g., INV-2024-001234
+  status          InvoiceStatus @default(DRAFT)
+
+  // === RENTAL DETAILS ===
+  rentalStartDate DateTime?     // Actual collection date (when vehicle handed over)
+  rentalEndDate   DateTime?     // Actual return date (when vehicle returned)
+  rentalDays      Int
+  dailyRate       Decimal       @db.Decimal(10, 2)
+  rentalAmount    Decimal       @db.Decimal(10, 2)
+
+  // === MILEAGE DETAILS ===
+  collectionOdometer Int?
+  returnOdometer     Int?
+  totalMileage       Int?
+  freeMileage        Int?
+  extraMileage       Int?
+  extraMileageRate   Decimal?    @db.Decimal(10, 2)
+  extraMileageCost   Decimal?    @db.Decimal(10, 2)
+
+  // === ADDITIONAL CHARGES ===
+  packageCharges   Decimal?     @db.Decimal(10, 2)
+  fuelCharge       Decimal?     @db.Decimal(10, 2)
+  damageCharge     Decimal?     @db.Decimal(10, 2)
+  lateReturnCharge Decimal?     @db.Decimal(10, 2)
+  otherCharges     Decimal?     @db.Decimal(10, 2)
+  otherChargesDesc String?      @db.Text
+
+  // === TOTALS ===
+  subtotal         Decimal      @db.Decimal(10, 2)
+  discountAmount   Decimal?     @db.Decimal(10, 2)
+  discountReason   String?
+  taxRate          Decimal?     @db.Decimal(5, 2)  // Tax percentage
+  taxAmount        Decimal?     @db.Decimal(10, 2)
+  totalAmount      Decimal      @db.Decimal(10, 2)
+
+  // === PAYMENTS ===
+  advancePaid      Decimal?     @db.Decimal(10, 2)
+  balanceDue       Decimal      @db.Decimal(10, 2)
+  amountPaid       Decimal      @default(0) @db.Decimal(10, 2)
+
+  // === DATES ===
+  issuedAt         DateTime?
+  dueDate          DateTime?
+  paidAt           DateTime?
+
+  // === NOTES ===
+  notes            String?      @db.Text
+  termsAndConditions String?    @db.Text
+
+  // === SENDING ===
+  sentViaEmail     Boolean      @default(false)
+  emailSentAt      DateTime?
+  sentViaWhatsApp  Boolean      @default(false)
+  whatsAppSentAt   DateTime?
+
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  createdBy        String?      // Admin user ID who created
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  payments InvoicePayment[]
+
+  @@index([status])
+  @@index([invoiceNumber])
+}
+
+model InvoicePayment {
+  id            String        @id @default(cuid())
+  invoiceId     String
+  amount        Decimal       @db.Decimal(10, 2)
+  method        String        // Cash, Card, Bank Transfer, Online, etc.
+  reference     String?       // Transaction reference number
+  notes         String?       @db.Text
+  receivedBy    String?       // Admin user ID who received payment
+  paidAt        DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }

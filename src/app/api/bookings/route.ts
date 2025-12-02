@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     const overlappingBooking = await prisma.booking.findFirst({
       where: {
         vehicleId: data.vehicleId,
-        status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
+        status: { in: ["PENDING", "CONFIRMED", "COLLECTED"] },
         OR: [
           {
             AND: [

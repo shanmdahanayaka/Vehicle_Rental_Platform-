@@ -24,11 +24,24 @@ export default function AddToCartButton({
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
   const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("09:00");
   const [pickupLocation, setPickupLocation] = useState(location);
   const [dropoffLocation, setDropoffLocation] = useState(location);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  // Get full datetime from date and time
+  const getStartDateTime = () => {
+    if (!startDate) return null;
+    return new Date(`${startDate}T${startTime}`);
+  };
+
+  const getEndDateTime = () => {
+    if (!endDate) return null;
+    return new Date(`${endDate}T${endTime}`);
+  };
 
   const handleClick = () => {
     if (!session?.user) {
@@ -46,8 +59,16 @@ export default function AddToCartButton({
       return;
     }
 
-    if (new Date(startDate) >= new Date(endDate)) {
-      setError("Return date must be after pickup date");
+    const startDateTime = getStartDateTime();
+    const endDateTime = getEndDateTime();
+
+    if (!startDateTime || !endDateTime) {
+      setError("Please select valid dates and times");
+      return;
+    }
+
+    if (startDateTime >= endDateTime) {
+      setError("Return date/time must be after pickup date/time");
       return;
     }
 
@@ -60,8 +81,8 @@ export default function AddToCartButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vehicleId,
-          startDate,
-          endDate,
+          startDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
           pickupLocation,
           dropoffLocation,
         }),
@@ -162,28 +183,44 @@ export default function AddToCartButton({
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Pickup Date
+                      Pickup Date & Time
                     </label>
-                    <input
-                      type="date"
-                      min={today}
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-slate-900"
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        min={today}
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-slate-900"
+                      />
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-slate-900"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Return Date
+                      Return Date & Time
                     </label>
-                    <input
-                      type="date"
-                      min={startDate || today}
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-slate-900"
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        min={startDate || today}
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-slate-900"
+                      />
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 text-slate-900"
+                      />
+                    </div>
                   </div>
 
                   <div>

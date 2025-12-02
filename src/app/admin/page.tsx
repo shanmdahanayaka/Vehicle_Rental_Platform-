@@ -11,12 +11,20 @@ async function getStats() {
     activeBookings,
     totalUsers,
     recentBookings,
+    // Get revenue from invoices (actual paid amounts)
+    invoiceRevenue,
+    // Get advance payments from confirmed bookings that are not yet invoiced
+    advancePayments,
+    // Get outstanding balance from invoices
+    outstandingBalance,
+    // Count paid invoices
+    paidInvoicesCount,
   ] = await Promise.all([
     prisma.vehicle.count(),
     prisma.vehicle.count({ where: { available: true } }),
     prisma.booking.count(),
     prisma.booking.count({ where: { status: "PENDING" } }),
-    prisma.booking.count({ where: { status: "ACTIVE" } }),
+    prisma.booking.count({ where: { status: "COLLECTED" } }), // Vehicles currently out
     prisma.user.count(),
     prisma.booking.findMany({
       take: 5,
@@ -24,14 +32,47 @@ async function getStats() {
       include: {
         user: { select: { name: true, email: true } },
         vehicle: { select: { name: true, brand: true } },
+        invoice: {
+          select: {
+            totalAmount: true,
+            amountPaid: true,
+            balanceDue: true,
+            status: true,
+          },
+        },
       },
+    }),
+    // Sum of all invoice payments (actual money received)
+    prisma.invoice.aggregate({
+      _sum: { amountPaid: true },
+    }),
+    // Sum of advance payments from bookings that haven't been invoiced yet
+    prisma.booking.aggregate({
+      where: {
+        advancePaid: true,
+        invoice: null, // Not yet invoiced
+      },
+      _sum: { advanceAmount: true },
+    }),
+    // Sum of outstanding balance from all invoices
+    prisma.invoice.aggregate({
+      where: {
+        status: { notIn: ["PAID", "CANCELLED"] },
+      },
+      _sum: { balanceDue: true },
+    }),
+    // Count of paid invoices
+    prisma.invoice.count({
+      where: { status: "PAID" },
     }),
   ]);
 
-  const totalRevenue = await prisma.booking.aggregate({
-    where: { status: { in: ["COMPLETED", "ACTIVE"] } },
-    _sum: { totalPrice: true },
-  });
+  // Total revenue = Invoice paid amounts + Advance payments not yet invoiced
+  const totalRevenue =
+    Number(invoiceRevenue._sum.amountPaid || 0) +
+    Number(advancePayments._sum.advanceAmount || 0);
+
+  const outstanding = Number(outstandingBalance._sum.balanceDue || 0);
 
   return {
     totalVehicles,
@@ -40,10 +81,19 @@ async function getStats() {
     pendingBookings,
     activeBookings,
     totalUsers,
-    totalRevenue: Number(totalRevenue._sum.totalPrice || 0),
+    totalRevenue,
+    outstanding,
+    paidInvoicesCount,
     recentBookings: recentBookings.map((b) => ({
       ...b,
       totalPrice: Number(b.totalPrice),
+      // For display: show invoice total if exists, otherwise booking price
+      displayAmount: b.invoice
+        ? Number(b.invoice.totalAmount)
+        : Number(b.totalPrice),
+      // Show paid amount for paid bookings
+      paidAmount: b.invoice ? Number(b.invoice.amountPaid) : 0,
+      invoiceStatus: b.invoice?.status || null,
     })),
   };
 }
@@ -55,8 +105,8 @@ export default async function AdminDashboard() {
     {
       title: "Total Revenue",
       value: formatCurrency(stats.totalRevenue),
-      change: "+12.5%",
-      changeType: "positive",
+      change: stats.outstanding > 0 ? `${formatCurrency(stats.outstanding)} outstanding` : `${stats.paidInvoicesCount} invoices paid`,
+      changeType: stats.outstanding > 0 ? "warning" : "positive",
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -68,7 +118,7 @@ export default async function AdminDashboard() {
       title: "Total Bookings",
       value: stats.totalBookings.toString(),
       change: `${stats.pendingBookings} pending`,
-      changeType: "neutral",
+      changeType: stats.pendingBookings > 0 ? "warning" : "neutral",
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -91,8 +141,8 @@ export default async function AdminDashboard() {
     {
       title: "Total Users",
       value: stats.totalUsers.toString(),
-      change: "+8.2%",
-      changeType: "positive",
+      change: `${stats.activeBookings} active rentals`,
+      changeType: stats.activeBookings > 0 ? "positive" : "neutral",
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -106,8 +156,10 @@ export default async function AdminDashboard() {
     const styles: Record<string, string> = {
       PENDING: "bg-yellow-100 text-yellow-700",
       CONFIRMED: "bg-blue-100 text-blue-700",
-      ACTIVE: "bg-green-100 text-green-700",
-      COMPLETED: "bg-slate-100 text-slate-700",
+      COLLECTED: "bg-emerald-100 text-emerald-700",
+      COMPLETED: "bg-purple-100 text-purple-700",
+      INVOICED: "bg-orange-100 text-orange-700",
+      PAID: "bg-green-100 text-green-700",
       CANCELLED: "bg-red-100 text-red-700",
     };
     return styles[status] || styles.PENDING;
@@ -157,6 +209,8 @@ export default async function AdminDashboard() {
                       ? "text-emerald-600"
                       : stat.changeType === "negative"
                       ? "text-red-600"
+                      : stat.changeType === "warning"
+                      ? "text-amber-600"
                       : "text-slate-500"
                   }`}
                 >
@@ -238,9 +292,16 @@ export default async function AdminDashboard() {
                         </span>
                       </td>
                       <td className="py-4 text-right">
-                        <p className="font-semibold text-slate-900">
-                          {formatCurrency(booking.totalPrice)}
-                        </p>
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {formatCurrency(booking.displayAmount)}
+                          </p>
+                          {booking.paidAmount > 0 && (
+                            <p className="text-xs text-emerald-600">
+                              Paid: {formatCurrency(booking.paidAmount)}
+                            </p>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
