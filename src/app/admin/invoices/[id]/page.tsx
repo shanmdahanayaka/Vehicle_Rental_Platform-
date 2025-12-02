@@ -1,37 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Download,
-  Printer,
-  Mail,
-  MessageCircle,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  FileText,
-  Calendar,
-  Car,
-  User,
-  Phone,
-  MapPin,
-  Gauge,
-  CreditCard,
-  Receipt,
-  Send,
-} from "lucide-react";
-import { brand, contact, currency, invoiceConfig } from "@/config/site";
+import { brand, contact, currency, invoiceConfig, formatCurrency } from "@/config/site";
 
 interface Invoice {
   id: string;
   bookingId: string;
   invoiceNumber: string;
   status: string;
-  rentalStartDate: string | null;  // Actual collection date
-  rentalEndDate: string | null;    // Actual return date
+  rentalStartDate: string | null;
+  rentalEndDate: string | null;
   rentalDays: number;
   dailyRate: number;
   rentalAmount: number;
@@ -109,7 +89,6 @@ interface Invoice {
 export default function InvoiceViewPage() {
   const params = useParams();
   const router = useRouter();
-  const printRef = useRef<HTMLDivElement>(null);
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,15 +96,19 @@ export default function InvoiceViewPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchInvoice();
+    if (params.id) {
+      fetchInvoice();
+    }
   }, [params.id]);
 
   const fetchInvoice = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`/api/admin/invoices/${params.id}`);
       if (!response.ok) {
-        throw new Error("Failed to fetch invoice");
+        const data = await response.json();
+        throw new Error(data.error || "Failed to fetch invoice");
       }
       const data = await response.json();
       setInvoice(data);
@@ -137,11 +120,6 @@ export default function InvoiceViewPage() {
   };
 
   const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownloadPDF = () => {
-    // Using print dialog with PDF option
     window.print();
   };
 
@@ -180,7 +158,6 @@ export default function InvoiceViewPage() {
       if (!response.ok) {
         throw new Error(data.error || "Failed to generate WhatsApp link");
       }
-      // Open WhatsApp
       if (data.whatsappUrl) {
         window.open(data.whatsappUrl, "_blank");
       }
@@ -190,11 +167,6 @@ export default function InvoiceViewPage() {
     } finally {
       setActionLoading(null);
     }
-  };
-
-  const formatCurrency = (amount: number | null | undefined) => {
-    if (amount === null || amount === undefined) return "-";
-    return `${currency.symbol}${Number(amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
   };
 
   const formatDate = (dateString: string | null) => {
@@ -218,20 +190,29 @@ export default function InvoiceViewPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-      DRAFT: { color: "bg-gray-100 text-gray-700", icon: <FileText className="w-4 h-4" />, label: "Draft" },
-      ISSUED: { color: "bg-blue-100 text-blue-700", icon: <Send className="w-4 h-4" />, label: "Issued" },
-      SENT: { color: "bg-purple-100 text-purple-700", icon: <Mail className="w-4 h-4" />, label: "Sent" },
-      PARTIALLY_PAID: { color: "bg-yellow-100 text-yellow-700", icon: <Clock className="w-4 h-4" />, label: "Partially Paid" },
-      PAID: { color: "bg-green-100 text-green-700", icon: <CheckCircle className="w-4 h-4" />, label: "Paid" },
-      OVERDUE: { color: "bg-red-100 text-red-700", icon: <AlertCircle className="w-4 h-4" />, label: "Overdue" },
-      CANCELLED: { color: "bg-gray-100 text-gray-500", icon: <AlertCircle className="w-4 h-4" />, label: "Cancelled" },
+    const statusConfig: Record<string, string> = {
+      DRAFT: "bg-slate-100 text-slate-600 ring-slate-200",
+      ISSUED: "bg-blue-50 text-blue-600 ring-blue-200",
+      SENT: "bg-purple-50 text-purple-600 ring-purple-200",
+      PARTIALLY_PAID: "bg-amber-50 text-amber-600 ring-amber-200",
+      PAID: "bg-emerald-50 text-emerald-600 ring-emerald-200",
+      OVERDUE: "bg-red-50 text-red-600 ring-red-200",
+      CANCELLED: "bg-slate-100 text-slate-400 ring-slate-200",
     };
-    const config = statusConfig[status] || statusConfig.DRAFT;
+
+    const labels: Record<string, string> = {
+      DRAFT: "Draft",
+      ISSUED: "Issued",
+      SENT: "Sent",
+      PARTIALLY_PAID: "Partial",
+      PAID: "Paid",
+      OVERDUE: "Overdue",
+      CANCELLED: "Cancelled",
+    };
+
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${config.color}`}>
-        {config.icon}
-        {config.label}
+      <span className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${statusConfig[status] || statusConfig.DRAFT}`}>
+        {labels[status] || status}
       </span>
     );
   };
@@ -239,7 +220,7 @@ export default function InvoiceViewPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -247,8 +228,12 @@ export default function InvoiceViewPage() {
   if (error || !invoice) {
     return (
       <div className="max-w-4xl mx-auto py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <div className="rounded-2xl bg-red-50 border border-red-200 p-8 text-center">
+          <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
           <h2 className="text-xl font-semibold text-red-700 mb-2">Invoice Not Found</h2>
           <p className="text-red-600 mb-4">{error || "The requested invoice could not be found."}</p>
           <Link href="/admin/bookings" className="text-blue-600 hover:underline">
@@ -287,20 +272,22 @@ export default function InvoiceViewPage() {
         }
       `}</style>
 
-      <div className="max-w-5xl mx-auto">
+      <div className="space-y-6">
         {/* Header Actions - No Print */}
-        <div className="no-print flex items-center justify-between mb-6">
+        <div className="no-print flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
               Back
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Invoice {invoice.invoiceNumber}</h1>
-              <p className="text-gray-500 text-sm">
+              <h1 className="text-2xl font-bold text-slate-900">Invoice {invoice.invoiceNumber}</h1>
+              <p className="text-slate-500 text-sm">
                 Created on {formatDateTime(invoice.createdAt)}
               </p>
             </div>
@@ -309,54 +296,57 @@ export default function InvoiceViewPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors"
             >
-              <Printer className="w-4 h-4" />
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
               Print
-            </button>
-            <button
-              onClick={handleDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Download PDF
             </button>
             <button
               onClick={handleSendEmail}
               disabled={actionLoading === "email"}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              <Mail className="w-4 h-4" />
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
               {actionLoading === "email" ? "Sending..." : "Email"}
             </button>
             <button
               onClick={handleSendWhatsApp}
               disabled={actionLoading === "whatsapp"}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50"
             >
-              <MessageCircle className="w-4 h-4" />
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
               {actionLoading === "whatsapp" ? "Opening..." : "WhatsApp"}
             </button>
           </div>
         </div>
 
         {/* Status and Sending Info - No Print */}
-        <div className="no-print bg-white rounded-lg shadow-sm border p-4 mb-6">
+        <div className="no-print rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/60">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <span className="text-gray-500 text-sm">Status:</span>
+              <span className="text-slate-500 text-sm">Status:</span>
               {getStatusBadge(invoice.status)}
             </div>
             <div className="flex items-center gap-6 text-sm">
               {invoice.sentViaEmail && (
-                <div className="flex items-center gap-1 text-green-600">
-                  <Mail className="w-4 h-4" />
+                <div className="flex items-center gap-1 text-emerald-600">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
                   <span>Emailed {formatDateTime(invoice.emailSentAt)}</span>
                 </div>
               )}
               {invoice.sentViaWhatsApp && (
-                <div className="flex items-center gap-1 text-green-600">
-                  <MessageCircle className="w-4 h-4" />
+                <div className="flex items-center gap-1 text-emerald-600">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
                   <span>WhatsApp {formatDateTime(invoice.whatsAppSentAt)}</span>
                 </div>
               )}
@@ -365,9 +355,9 @@ export default function InvoiceViewPage() {
         </div>
 
         {/* Printable Invoice */}
-        <div ref={printRef} className="print-area bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="print-area rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/60 overflow-hidden">
           {/* Invoice Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-8">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8">
             <div className="flex justify-between items-start">
               <div>
                 <h1 className="text-3xl font-bold">{brand.name}</h1>
@@ -384,22 +374,19 @@ export default function InvoiceViewPage() {
           <div className="p-8">
             {/* Billing Info */}
             <div className="grid grid-cols-2 gap-8 mb-8">
-              {/* From */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">From</h3>
-                <div className="text-gray-700">
-                  <p className="font-semibold text-gray-900">{invoiceConfig.companyDetails.name}</p>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">From</h3>
+                <div className="text-slate-700">
+                  <p className="font-semibold text-slate-900">{invoiceConfig.companyDetails.name}</p>
                   <p>{invoiceConfig.companyDetails.address}</p>
                   <p>{invoiceConfig.companyDetails.phone}</p>
                   <p>{invoiceConfig.companyDetails.email}</p>
                 </div>
               </div>
-
-              {/* Bill To */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Bill To</h3>
-                <div className="text-gray-700">
-                  <p className="font-semibold text-gray-900">{invoice.booking.user.name || "N/A"}</p>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Bill To</h3>
+                <div className="text-slate-700">
+                  <p className="font-semibold text-slate-900">{invoice.booking.user.name || "N/A"}</p>
                   <p>{invoice.booking.user.email}</p>
                   {invoice.booking.user.phone && <p>{invoice.booking.user.phone}</p>}
                 </div>
@@ -407,50 +394,44 @@ export default function InvoiceViewPage() {
             </div>
 
             {/* Invoice Details */}
-            <div className="grid grid-cols-4 gap-4 mb-8 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-4 gap-4 mb-8 p-4 bg-slate-50 rounded-xl">
               <div>
-                <p className="text-xs text-gray-500 uppercase">Invoice Date</p>
+                <p className="text-xs text-slate-500 uppercase">Invoice Date</p>
                 <p className="font-medium">{formatDate(invoice.issuedAt || invoice.createdAt)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase">Due Date</p>
+                <p className="text-xs text-slate-500 uppercase">Due Date</p>
                 <p className="font-medium">{formatDate(invoice.dueDate)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase">Status</p>
+                <p className="text-xs text-slate-500 uppercase">Status</p>
                 <p className="font-medium capitalize">{invoice.status.toLowerCase().replace("_", " ")}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase">Booking ID</p>
+                <p className="text-xs text-slate-500 uppercase">Booking ID</p>
                 <p className="font-medium font-mono text-sm">{invoice.bookingId.slice(-8).toUpperCase()}</p>
               </div>
             </div>
 
             {/* Vehicle Info */}
-            <div className="mb-8 p-4 border rounded-lg">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Car className="w-4 h-4" /> Vehicle & Rental Period
-              </h3>
+            <div className="mb-8 p-4 border rounded-xl">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Vehicle & Rental Period</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="font-semibold text-gray-900">
-                    {invoice.booking.vehicle.name}
-                  </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-semibold text-slate-900">{invoice.booking.vehicle.name}</p>
+                  <p className="text-sm text-slate-600">
                     {invoice.booking.vehicle.brand} {invoice.booking.vehicle.model} ({invoice.booking.vehicle.year})
                   </p>
                 </div>
-                <div className="text-sm text-gray-600">
-                  <p className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
+                <div className="text-sm text-slate-600">
+                  <p>
                     <span className="font-medium">Actual Rental:</span> {formatDate(invoice.rentalStartDate)} - {formatDate(invoice.rentalEndDate)}
-                    <span className="text-gray-500">({invoice.rentalDays} days)</span>
+                    <span className="text-slate-500 ml-1">({invoice.rentalDays} days)</span>
                   </p>
-                  <p className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                  <p className="text-xs text-slate-400 mt-1">
                     Original Booking: {formatDate(invoice.booking.startDate)} - {formatDate(invoice.booking.endDate)}
                   </p>
-                  <p className="flex items-center gap-2 mt-1">
-                    <MapPin className="w-4 h-4" />
+                  <p className="mt-1">
                     {invoice.booking.pickupLocation} → {invoice.booking.dropoffLocation}
                   </p>
                 </div>
@@ -460,21 +441,19 @@ export default function InvoiceViewPage() {
             {/* Line Items */}
             <table className="w-full mb-8">
               <thead>
-                <tr className="border-b-2 border-gray-200">
-                  <th className="text-left py-3 text-xs font-semibold text-gray-400 uppercase">Description</th>
-                  <th className="text-right py-3 text-xs font-semibold text-gray-400 uppercase">Qty/Days</th>
-                  <th className="text-right py-3 text-xs font-semibold text-gray-400 uppercase">Rate</th>
-                  <th className="text-right py-3 text-xs font-semibold text-gray-400 uppercase">Amount</th>
+                <tr className="border-b-2 border-slate-200">
+                  <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase">Description</th>
+                  <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase">Qty/Days</th>
+                  <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase">Rate</th>
+                  <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {/* Rental */}
-                <tr className="border-b border-gray-100">
+                <tr className="border-b border-slate-100">
                   <td className="py-3">
                     <p className="font-medium">Vehicle Rental</p>
-                    <p className="text-sm text-gray-500">
-                      {invoice.booking.vehicle.brand} {invoice.booking.vehicle.model}
-                    </p>
+                    <p className="text-sm text-slate-500">{invoice.booking.vehicle.name}</p>
                   </td>
                   <td className="text-right py-3">{invoice.rentalDays} days</td>
                   <td className="text-right py-3">{formatCurrency(invoice.dailyRate)}/day</td>
@@ -485,7 +464,7 @@ export default function InvoiceViewPage() {
                 {invoice.booking.packages && invoice.booking.packages.length > 0 && (
                   <>
                     {invoice.booking.packages.map((pkg) => (
-                      <tr key={pkg.id} className="border-b border-gray-100">
+                      <tr key={pkg.id} className="border-b border-slate-100">
                         <td className="py-3">
                           <p className="font-medium">Package: {pkg.package.name}</p>
                         </td>
@@ -499,26 +478,23 @@ export default function InvoiceViewPage() {
 
                 {/* Extra Mileage */}
                 {invoice.extraMileage && invoice.extraMileage > 0 && (
-                  <tr className="border-b border-gray-100">
+                  <tr className="border-b border-slate-100">
                     <td className="py-3">
                       <p className="font-medium">Extra Mileage Charge</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-slate-500">
                         {invoice.extraMileage} km beyond {invoice.freeMileage} km free
                       </p>
                     </td>
                     <td className="text-right py-3">{invoice.extraMileage} km</td>
-                    <td className="text-right py-3">{formatCurrency(invoice.extraMileageRate)}/km</td>
-                    <td className="text-right py-3 font-medium">{formatCurrency(invoice.extraMileageCost)}</td>
+                    <td className="text-right py-3">{formatCurrency(invoice.extraMileageRate || 0)}/km</td>
+                    <td className="text-right py-3 font-medium">{formatCurrency(invoice.extraMileageCost || 0)}</td>
                   </tr>
                 )}
 
                 {/* Fuel Charge */}
                 {invoice.fuelCharge && invoice.fuelCharge > 0 && (
-                  <tr className="border-b border-gray-100">
-                    <td className="py-3">
-                      <p className="font-medium">Fuel Charge</p>
-                      <p className="text-sm text-gray-500">Fuel level difference</p>
-                    </td>
+                  <tr className="border-b border-slate-100">
+                    <td className="py-3"><p className="font-medium">Fuel Charge</p></td>
                     <td className="text-right py-3">1</td>
                     <td className="text-right py-3">{formatCurrency(invoice.fuelCharge)}</td>
                     <td className="text-right py-3 font-medium">{formatCurrency(invoice.fuelCharge)}</td>
@@ -527,10 +503,8 @@ export default function InvoiceViewPage() {
 
                 {/* Damage Charge */}
                 {invoice.damageCharge && invoice.damageCharge > 0 && (
-                  <tr className="border-b border-gray-100">
-                    <td className="py-3">
-                      <p className="font-medium">Damage Charge</p>
-                    </td>
+                  <tr className="border-b border-slate-100">
+                    <td className="py-3"><p className="font-medium">Damage Charge</p></td>
                     <td className="text-right py-3">1</td>
                     <td className="text-right py-3">{formatCurrency(invoice.damageCharge)}</td>
                     <td className="text-right py-3 font-medium">{formatCurrency(invoice.damageCharge)}</td>
@@ -539,10 +513,8 @@ export default function InvoiceViewPage() {
 
                 {/* Late Return Charge */}
                 {invoice.lateReturnCharge && invoice.lateReturnCharge > 0 && (
-                  <tr className="border-b border-gray-100">
-                    <td className="py-3">
-                      <p className="font-medium">Late Return Charge</p>
-                    </td>
+                  <tr className="border-b border-slate-100">
+                    <td className="py-3"><p className="font-medium">Late Return Charge</p></td>
                     <td className="text-right py-3">1</td>
                     <td className="text-right py-3">{formatCurrency(invoice.lateReturnCharge)}</td>
                     <td className="text-right py-3 font-medium">{formatCurrency(invoice.lateReturnCharge)}</td>
@@ -551,12 +523,10 @@ export default function InvoiceViewPage() {
 
                 {/* Other Charges */}
                 {invoice.otherCharges && invoice.otherCharges > 0 && (
-                  <tr className="border-b border-gray-100">
+                  <tr className="border-b border-slate-100">
                     <td className="py-3">
                       <p className="font-medium">Other Charges</p>
-                      {invoice.otherChargesDesc && (
-                        <p className="text-sm text-gray-500">{invoice.otherChargesDesc}</p>
-                      )}
+                      {invoice.otherChargesDesc && <p className="text-sm text-slate-500">{invoice.otherChargesDesc}</p>}
                     </td>
                     <td className="text-right py-3">1</td>
                     <td className="text-right py-3">{formatCurrency(invoice.otherCharges)}</td>
@@ -570,11 +540,11 @@ export default function InvoiceViewPage() {
             <div className="flex justify-end mb-8">
               <div className="w-80">
                 <div className="flex justify-between py-2 border-b">
-                  <span className="text-gray-600">Subtotal</span>
+                  <span className="text-slate-600">Subtotal</span>
                   <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
                 </div>
                 {invoice.discountAmount && invoice.discountAmount > 0 && (
-                  <div className="flex justify-between py-2 border-b text-green-600">
+                  <div className="flex justify-between py-2 border-b text-emerald-600">
                     <span>
                       Discount
                       {invoice.discountReason && <span className="text-xs ml-1">({invoice.discountReason})</span>}
@@ -584,27 +554,27 @@ export default function InvoiceViewPage() {
                 )}
                 {invoice.taxAmount && invoice.taxAmount > 0 && (
                   <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-600">{invoiceConfig.taxName} ({invoice.taxRate}%)</span>
+                    <span className="text-slate-600">{invoiceConfig.taxName} ({invoice.taxRate}%)</span>
                     <span>{formatCurrency(invoice.taxAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between py-3 text-lg font-bold border-b-2 border-gray-300">
+                <div className="flex justify-between py-3 text-lg font-bold border-b-2 border-slate-300">
                   <span>Total</span>
                   <span>{formatCurrency(invoice.totalAmount)}</span>
                 </div>
                 {invoice.advancePaid && invoice.advancePaid > 0 && (
-                  <div className="flex justify-between py-2 text-green-600">
+                  <div className="flex justify-between py-2 text-emerald-600">
                     <span>Advance Paid</span>
                     <span>-{formatCurrency(invoice.advancePaid)}</span>
                   </div>
                 )}
                 {invoice.amountPaid > 0 && invoice.amountPaid !== invoice.advancePaid && (
-                  <div className="flex justify-between py-2 text-green-600">
+                  <div className="flex justify-between py-2 text-emerald-600">
                     <span>Amount Paid</span>
                     <span>-{formatCurrency(invoice.amountPaid)}</span>
                   </div>
                 )}
-                <div className="flex justify-between py-3 text-xl font-bold bg-blue-50 px-3 rounded-lg mt-2">
+                <div className="flex justify-between py-3 text-xl font-bold bg-blue-50 px-3 rounded-xl mt-2">
                   <span className="text-blue-800">Balance Due</span>
                   <span className="text-blue-800">{formatCurrency(invoice.balanceDue)}</span>
                 </div>
@@ -612,26 +582,24 @@ export default function InvoiceViewPage() {
             </div>
 
             {/* Mileage Summary */}
-            {invoice.totalMileage && (
-              <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Gauge className="w-4 h-4" /> Mileage Summary
-                </h3>
+            {invoice.totalMileage && invoice.totalMileage > 0 && (
+              <div className="mb-8 p-4 bg-slate-50 rounded-xl">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Mileage Summary</h3>
                 <div className="grid grid-cols-4 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-500">Collection Odometer</p>
+                    <p className="text-slate-500">Collection Odometer</p>
                     <p className="font-medium">{invoice.collectionOdometer?.toLocaleString()} km</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Return Odometer</p>
+                    <p className="text-slate-500">Return Odometer</p>
                     <p className="font-medium">{invoice.returnOdometer?.toLocaleString()} km</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Total Mileage</p>
+                    <p className="text-slate-500">Total Mileage</p>
                     <p className="font-medium">{invoice.totalMileage?.toLocaleString()} km</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Free Mileage</p>
+                    <p className="text-slate-500">Free Mileage</p>
                     <p className="font-medium">{invoice.freeMileage?.toLocaleString()} km</p>
                   </div>
                 </div>
@@ -641,17 +609,15 @@ export default function InvoiceViewPage() {
             {/* Payment History */}
             {invoice.payments && invoice.payments.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" /> Payment History
-                </h3>
-                <div className="border rounded-lg overflow-hidden">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Payment History</h3>
+                <div className="border rounded-xl overflow-hidden">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-slate-50">
                       <tr>
-                        <th className="text-left py-2 px-4 text-xs font-semibold text-gray-500">Date</th>
-                        <th className="text-left py-2 px-4 text-xs font-semibold text-gray-500">Method</th>
-                        <th className="text-left py-2 px-4 text-xs font-semibold text-gray-500">Reference</th>
-                        <th className="text-right py-2 px-4 text-xs font-semibold text-gray-500">Amount</th>
+                        <th className="text-left py-2 px-4 text-xs font-semibold text-slate-500">Date</th>
+                        <th className="text-left py-2 px-4 text-xs font-semibold text-slate-500">Method</th>
+                        <th className="text-left py-2 px-4 text-xs font-semibold text-slate-500">Reference</th>
+                        <th className="text-right py-2 px-4 text-xs font-semibold text-slate-500">Amount</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -660,7 +626,7 @@ export default function InvoiceViewPage() {
                           <td className="py-2 px-4 text-sm">{formatDateTime(payment.paidAt)}</td>
                           <td className="py-2 px-4 text-sm capitalize">{payment.method.toLowerCase()}</td>
                           <td className="py-2 px-4 text-sm font-mono">{payment.reference || "-"}</td>
-                          <td className="py-2 px-4 text-sm font-medium text-right text-green-600">
+                          <td className="py-2 px-4 text-sm font-medium text-right text-emerald-600">
                             +{formatCurrency(payment.amount)}
                           </td>
                         </tr>
@@ -673,43 +639,43 @@ export default function InvoiceViewPage() {
 
             {/* Notes */}
             {invoice.notes && (
-              <div className="mb-8 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
-                <h3 className="text-xs font-semibold text-yellow-600 uppercase tracking-wider mb-2">Notes</h3>
-                <p className="text-sm text-yellow-800 whitespace-pre-wrap">{invoice.notes}</p>
+              <div className="mb-8 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+                <h3 className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-2">Notes</h3>
+                <p className="text-sm text-amber-800 whitespace-pre-wrap">{invoice.notes}</p>
               </div>
             )}
 
             {/* Terms */}
             <div className="border-t pt-6">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                 Terms & Conditions
               </h3>
-              <p className="text-xs text-gray-500 whitespace-pre-wrap">
+              <p className="text-xs text-slate-500 whitespace-pre-wrap">
                 {invoice.termsAndConditions || invoiceConfig.defaultTerms}
               </p>
             </div>
 
             {/* Bank Details */}
             {invoiceConfig.bankDetails.bankName && (
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              <div className="mt-6 p-4 bg-slate-50 rounded-xl">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                   Bank Details for Payment
                 </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-500">Bank Name</p>
+                    <p className="text-slate-500">Bank Name</p>
                     <p className="font-medium">{invoiceConfig.bankDetails.bankName}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Account Name</p>
+                    <p className="text-slate-500">Account Name</p>
                     <p className="font-medium">{invoiceConfig.bankDetails.accountName}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Account Number</p>
+                    <p className="text-slate-500">Account Number</p>
                     <p className="font-medium font-mono">{invoiceConfig.bankDetails.accountNumber}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Branch Code</p>
+                    <p className="text-slate-500">Branch Code</p>
                     <p className="font-medium">{invoiceConfig.bankDetails.branchCode}</p>
                   </div>
                 </div>
@@ -717,7 +683,7 @@ export default function InvoiceViewPage() {
             )}
 
             {/* Footer */}
-            <div className="mt-8 pt-6 border-t text-center text-sm text-gray-500">
+            <div className="mt-8 pt-6 border-t text-center text-sm text-slate-500">
               <p>Thank you for your business!</p>
               <p className="mt-2">
                 {contact.address.full} | {contact.phone.main} | {contact.email.general}
@@ -726,14 +692,16 @@ export default function InvoiceViewPage() {
           </div>
         </div>
 
-        {/* Back to Bookings Link - No Print */}
-        <div className="no-print mt-6 text-center">
+        {/* Back Link - No Print */}
+        <div className="no-print text-center">
           <Link
-            href="/admin/bookings"
+            href="/admin/invoices"
             className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-2"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Bookings
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Invoices
           </Link>
         </div>
       </div>
