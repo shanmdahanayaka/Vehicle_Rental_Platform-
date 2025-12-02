@@ -50,6 +50,14 @@ export default function Navbar() {
                   Vehicles
                 </Link>
                 <Link
+                  href="/packages"
+                  className={`transition font-medium ${
+                    pathname === "/packages" || pathname?.startsWith("/packages/") ? "text-blue-600" : "text-slate-600 hover:text-blue-600"
+                  }`}
+                >
+                  Packages
+                </Link>
+                <Link
                   href="/about"
                   className={`transition font-medium ${
                     pathname === "/about" ? "text-blue-600" : "text-slate-600 hover:text-blue-600"
@@ -266,6 +274,15 @@ export default function Navbar() {
                   }`}
                 >
                   Vehicles
+                </Link>
+                <Link
+                  href="/packages"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`block rounded-lg px-3 py-2 font-medium ${
+                    pathname === "/packages" || pathname?.startsWith("/packages/") ? "text-blue-600 bg-blue-50" : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  Packages
                 </Link>
                 <Link
                   href="/about"

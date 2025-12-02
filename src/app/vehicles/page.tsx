@@ -13,6 +13,7 @@ interface SearchParams {
   fuelType?: string;
   seats?: string;
   sort?: string;
+  package?: string;
 }
 
 const sriLankanLocations = [
@@ -42,7 +43,7 @@ async function getVehicles(searchParams: SearchParams) {
     where.type = searchParams.type;
   }
   if (searchParams.location) {
-    where.location = { contains: searchParams.location, mode: "insensitive" };
+    where.location = { contains: searchParams.location };
   }
   if (searchParams.transmission && searchParams.transmission !== "all") {
     where.transmission = searchParams.transmission;
@@ -65,6 +66,40 @@ async function getVehicles(searchParams: SearchParams) {
         searchParams.maxPrice
       );
     }
+  }
+
+  // Package filter - check if there's a global package of this type, or vehicle-specific packages
+  let vehicleIdsWithPackage: string[] | null = null;
+  if (searchParams.package && searchParams.package !== "all") {
+    // Check if there's a global package of this type
+    const globalPackage = await prisma.package.findFirst({
+      where: {
+        type: searchParams.package as never,
+        isActive: true,
+        isGlobal: true,
+      },
+    });
+
+    if (!globalPackage) {
+      // No global package, find vehicles with this package type linked
+      const vehiclePackages = await prisma.vehiclePackage.findMany({
+        where: {
+          package: {
+            type: searchParams.package as never,
+            isActive: true,
+          },
+        },
+        select: { vehicleId: true },
+      });
+      vehicleIdsWithPackage = vehiclePackages.map((vp) => vp.vehicleId);
+
+      // If no vehicles have this package, return empty
+      if (vehicleIdsWithPackage.length === 0) {
+        return [];
+      }
+      where.id = { in: vehicleIdsWithPackage };
+    }
+    // If global package exists, all vehicles have access to it, no additional filter needed
   }
 
   // Sorting
@@ -137,7 +172,8 @@ export default async function VehiclesPage({
     params.maxPrice ||
     params.transmission ||
     params.fuelType ||
-    params.seats;
+    params.seats ||
+    params.package;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -228,8 +264,20 @@ export default async function VehiclesPage({
                 </p>
               </div>
 
-              {/* Sort Dropdown */}
-              <VehicleSortDropdown currentSort={params.sort || "newest"} />
+              <div className="flex items-center gap-4">
+                {/* Browse by Package Link */}
+                <Link
+                  href="/packages"
+                  className="hidden sm:inline-flex items-center gap-2 text-slate-600 hover:text-purple-600 font-medium transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  Browse by Package
+                </Link>
+                {/* Sort Dropdown */}
+                <VehicleSortDropdown currentSort={params.sort || "newest"} />
+              </div>
             </div>
 
             {/* Active Filters */}
@@ -281,6 +329,23 @@ export default async function VehiclesPage({
                         )
                       ).toString()}`}
                       className="hover:text-green-900"
+                    >
+                      ×
+                    </Link>
+                  </span>
+                )}
+                {params.package && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-sm">
+                    Package: {params.package.replace(/_/g, " ")}
+                    <Link
+                      href={`/vehicles?${new URLSearchParams(
+                        Object.fromEntries(
+                          Object.entries(params).filter(
+                            ([k]) => k !== "package"
+                          )
+                        )
+                      ).toString()}`}
+                      className="hover:text-orange-900"
                     >
                       ×
                     </Link>

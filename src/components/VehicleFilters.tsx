@@ -12,10 +12,22 @@ interface VehicleFiltersProps {
     transmission?: string;
     fuelType?: string;
     seats?: string;
+    package?: string;
   };
   locations: string[];
   vehicleCount: number;
 }
+
+const packageOptions = [
+  { value: "all", label: "All Packages" },
+  { value: "DAILY", label: "Daily Rental" },
+  { value: "WEEKLY", label: "Weekly Rental" },
+  { value: "MONTHLY", label: "Monthly Rental" },
+  { value: "AIRPORT_PICKUP", label: "Airport Pickup" },
+  { value: "AIRPORT_DROP", label: "Airport Drop" },
+  { value: "AIRPORT_ROUND", label: "Airport Round Trip" },
+  { value: "HOURLY", label: "Hourly Rental" },
+];
 
 export default function VehicleFilters({
   params,
@@ -32,6 +44,7 @@ export default function VehicleFilters({
     transmission: params.transmission || "all",
     fuelType: params.fuelType || "all",
     seats: params.seats || "",
+    package: params.package || "all",
   });
 
   // Sync filters state when URL params change
@@ -43,8 +56,9 @@ export default function VehicleFilters({
       transmission: params.transmission || "all",
       fuelType: params.fuelType || "all",
       seats: params.seats || "",
+      package: params.package || "all",
     });
-  }, [params.location, params.minPrice, params.maxPrice, params.transmission, params.fuelType, params.seats]);
+  }, [params.location, params.minPrice, params.maxPrice, params.transmission, params.fuelType, params.seats, params.package]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -68,6 +82,8 @@ export default function VehicleFilters({
     if (filters.fuelType && filters.fuelType !== "all")
       searchParams.set("fuelType", filters.fuelType);
     if (filters.seats) searchParams.set("seats", filters.seats);
+    if (filters.package && filters.package !== "all")
+      searchParams.set("package", filters.package);
 
     router.push(`/vehicles?${searchParams.toString()}`);
   };
@@ -80,6 +96,7 @@ export default function VehicleFilters({
       transmission: "all",
       fuelType: "all",
       seats: "",
+      package: "all",
     });
     router.push("/vehicles");
   };
@@ -160,6 +177,40 @@ export default function VehicleFilters({
                 {locations.map((loc) => (
                   <option key={loc} value={loc}>
                     {loc}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Package Type */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Package Type
+            </label>
+            <div className="relative">
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              </svg>
+              <select
+                name="package"
+                value={filters.package}
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white text-slate-700"
+              >
+                {packageOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
                   </option>
                 ))}
               </select>

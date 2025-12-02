@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import BookingForm from "./BookingForm";
 
 const POLICY_CATEGORY_ICONS: Record<string, string> = {
@@ -11,6 +12,28 @@ const POLICY_CATEGORY_ICONS: Record<string, string> = {
   general: "📋",
   payment: "💳",
   mileage: "📏",
+};
+
+const PACKAGE_TYPE_LABELS: Record<string, string> = {
+  DAILY: "Daily Rental",
+  WEEKLY: "Weekly Rental",
+  MONTHLY: "Monthly Rental",
+  AIRPORT_PICKUP: "Airport Pickup",
+  AIRPORT_DROP: "Airport Drop",
+  AIRPORT_ROUND: "Airport Round Trip",
+  HOURLY: "Hourly Rental",
+  CUSTOM: "Custom Package",
+};
+
+const PACKAGE_TYPE_COLORS: Record<string, string> = {
+  DAILY: "bg-blue-100 text-blue-700",
+  WEEKLY: "bg-green-100 text-green-700",
+  MONTHLY: "bg-purple-100 text-purple-700",
+  AIRPORT_PICKUP: "bg-orange-100 text-orange-700",
+  AIRPORT_DROP: "bg-amber-100 text-amber-700",
+  AIRPORT_ROUND: "bg-red-100 text-red-700",
+  HOURLY: "bg-cyan-100 text-cyan-700",
+  CUSTOM: "bg-slate-100 text-slate-700",
 };
 
 async function getVehicle(id: string) {
@@ -48,13 +71,94 @@ async function getVehicle(id: string) {
   };
 }
 
+async function getAvailablePackages(vehicleId: string) {
+  // Get global packages
+  const globalPackages = await prisma.package.findMany({
+    where: {
+      isActive: true,
+      isGlobal: true,
+    },
+    include: {
+      policies: {
+        include: {
+          policy: {
+            select: { id: true, title: true, summary: true },
+          },
+        },
+      },
+    },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+
+  // Get vehicle-specific packages
+  const vehiclePackages = await prisma.vehiclePackage.findMany({
+    where: {
+      vehicleId,
+      package: {
+        isActive: true,
+        isGlobal: false,
+      },
+    },
+    include: {
+      package: {
+        include: {
+          policies: {
+            include: {
+              policy: {
+                select: { id: true, title: true, summary: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Combine and transform
+  const allPackages = [
+    ...globalPackages.map((pkg) => ({
+      id: pkg.id,
+      name: pkg.name,
+      description: pkg.description,
+      type: pkg.type,
+      basePrice: pkg.basePrice ? Number(pkg.basePrice) : null,
+      pricePerDay: pkg.pricePerDay ? Number(pkg.pricePerDay) : null,
+      pricePerHour: pkg.pricePerHour ? Number(pkg.pricePerHour) : null,
+      discount: pkg.discount ? Number(pkg.discount) : null,
+      minDuration: pkg.minDuration,
+      maxDuration: pkg.maxDuration,
+      icon: pkg.icon,
+      policies: pkg.policies.map((pp) => pp.policy),
+    })),
+    ...vehiclePackages.map((vp) => ({
+      id: vp.package.id,
+      name: vp.package.name,
+      description: vp.package.description,
+      type: vp.package.type,
+      basePrice: vp.customPrice ? Number(vp.customPrice) : vp.package.basePrice ? Number(vp.package.basePrice) : null,
+      pricePerDay: vp.package.pricePerDay ? Number(vp.package.pricePerDay) : null,
+      pricePerHour: vp.package.pricePerHour ? Number(vp.package.pricePerHour) : null,
+      discount: vp.package.discount ? Number(vp.package.discount) : null,
+      minDuration: vp.package.minDuration,
+      maxDuration: vp.package.maxDuration,
+      icon: vp.package.icon,
+      policies: vp.package.policies.map((pp) => pp.policy),
+    })),
+  ];
+
+  return allPackages;
+}
+
 export default async function VehicleDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const vehicle = await getVehicle(id);
+  const [vehicle, packages] = await Promise.all([
+    getVehicle(id),
+    getAvailablePackages(id),
+  ]);
 
   if (!vehicle) {
     notFound();
@@ -183,6 +287,77 @@ export default async function VehicleDetailPage({
               </div>
             )}
           </div>
+
+          {/* Available Packages */}
+          {packages.length > 0 && (
+            <div className="bg-white rounded-xl p-6 shadow-md mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">Available Packages</h2>
+                <Link
+                  href="/packages"
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                >
+                  View all packages
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {packages.map((pkg) => (
+                  <Link
+                    key={pkg.id}
+                    href={`/packages/${pkg.id}`}
+                    className="group block p-4 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full mb-2 ${PACKAGE_TYPE_COLORS[pkg.type] || "bg-gray-100 text-gray-700"}`}>
+                          {PACKAGE_TYPE_LABELS[pkg.type] || pkg.type}
+                        </span>
+                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                          {pkg.name}
+                        </h3>
+                      </div>
+                      {pkg.discount && pkg.discount > 0 && (
+                        <span className="bg-green-100 text-green-700 px-2 py-0.5 text-xs font-bold rounded-full">
+                          {pkg.discount}% OFF
+                        </span>
+                      )}
+                    </div>
+                    {pkg.description && (
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{pkg.description}</p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        {pkg.basePrice ? (
+                          <span className="text-lg font-bold text-blue-600">
+                            Rs.{pkg.basePrice.toLocaleString()}
+                          </span>
+                        ) : pkg.pricePerDay ? (
+                          <span className="text-lg font-bold text-blue-600">
+                            Rs.{pkg.pricePerDay.toLocaleString()}<span className="text-sm font-normal text-gray-500">/day</span>
+                          </span>
+                        ) : pkg.pricePerHour ? (
+                          <span className="text-lg font-bold text-blue-600">
+                            Rs.{pkg.pricePerHour.toLocaleString()}<span className="text-sm font-normal text-gray-500">/hour</span>
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-500">Custom pricing</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-400 group-hover:text-blue-500 transition-colors">
+                        <span className="text-sm">Details</span>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Rental Policies */}
           {policies.length > 0 && (
