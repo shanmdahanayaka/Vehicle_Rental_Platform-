@@ -198,7 +198,7 @@ export default async function VehicleDetailPage({
         <div className="lg:col-span-2">
           {/* Image Gallery */}
           <div className="bg-white rounded-xl overflow-hidden shadow-md mb-6">
-            <div className="relative h-96 bg-gray-200">
+            <div className="relative h-96 bg-slate-200">
               {images.length > 0 ? (
                 <Image
                   src={images[0]}
@@ -207,7 +207,7 @@ export default async function VehicleDetailPage({
                   className="object-cover"
                 />
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-400">
+                <div className="flex items-center justify-center h-full text-slate-400">
                   <svg
                     className="w-32 h-32"
                     fill="none"
@@ -230,10 +230,10 @@ export default async function VehicleDetailPage({
           <div className="bg-white rounded-xl p-6 shadow-md mb-6">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-slate-900">
                   {vehicle.name}
                 </h1>
-                <p className="text-gray-500">
+                <p className="text-slate-500">
                   {vehicle.brand} {vehicle.model} - {vehicle.year}
                 </p>
               </div>
@@ -241,50 +241,50 @@ export default async function VehicleDetailPage({
                 <span className="text-3xl font-bold text-blue-600">
                   {formatCurrency(vehicle.pricePerDay)}
                 </span>
-                <span className="text-gray-500">/day</span>
+                <span className="text-slate-500">/day</span>
               </div>
             </div>
 
             {vehicle.reviews.length > 0 && (
               <div className="flex items-center mb-4">
                 <span className="text-yellow-500 text-xl">★</span>
-                <span className="ml-1 text-lg font-semibold">
+                <span className="ml-1 text-lg font-semibold text-slate-900">
                   {vehicle.avgRating.toFixed(1)}
                 </span>
-                <span className="text-gray-400 ml-2">
+                <span className="text-slate-400 ml-2">
                   ({vehicle.reviews.length} reviews)
                 </span>
               </div>
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <p className="text-gray-500 text-sm">Type</p>
-                <p className="font-semibold">{vehicle.type}</p>
+              <div className="bg-slate-50 p-4 rounded-lg text-center">
+                <p className="text-slate-500 text-sm">Type</p>
+                <p className="font-semibold text-slate-900">{vehicle.type}</p>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <p className="text-gray-500 text-sm">Transmission</p>
-                <p className="font-semibold">{vehicle.transmission}</p>
+              <div className="bg-slate-50 p-4 rounded-lg text-center">
+                <p className="text-slate-500 text-sm">Transmission</p>
+                <p className="font-semibold text-slate-900">{vehicle.transmission}</p>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <p className="text-gray-500 text-sm">Fuel Type</p>
-                <p className="font-semibold">{vehicle.fuelType}</p>
+              <div className="bg-slate-50 p-4 rounded-lg text-center">
+                <p className="text-slate-500 text-sm">Fuel Type</p>
+                <p className="font-semibold text-slate-900">{vehicle.fuelType}</p>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <p className="text-gray-500 text-sm">Seats</p>
-                <p className="font-semibold">{vehicle.seats}</p>
+              <div className="bg-slate-50 p-4 rounded-lg text-center">
+                <p className="text-slate-500 text-sm">Seats</p>
+                <p className="font-semibold text-slate-900">{vehicle.seats}</p>
               </div>
             </div>
 
             <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-2">Location</h3>
-              <p className="text-gray-600">{vehicle.location}</p>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Location</h3>
+              <p className="text-slate-600">{vehicle.location}</p>
             </div>
 
             {vehicle.description && (
               <div>
-                <h3 className="text-lg font-semibold mb-2">Description</h3>
-                <p className="text-gray-600">{vehicle.description}</p>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">Description</h3>
+                <p className="text-slate-600">{vehicle.description}</p>
               </div>
             )}
           </div>
@@ -309,14 +309,14 @@ export default async function VehicleDetailPage({
                   <Link
                     key={pkg.id}
                     href={`/packages/${pkg.id}`}
-                    className="group block p-4 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all"
+                    className="group block p-4 border border-slate-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full mb-2 ${PACKAGE_TYPE_COLORS[pkg.type] || "bg-gray-100 text-gray-700"}`}>
+                        <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full mb-2 ${PACKAGE_TYPE_COLORS[pkg.type] || "bg-slate-100 text-slate-700"}`}>
                           {PACKAGE_TYPE_LABELS[pkg.type] || pkg.type}
                         </span>
-                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
                           {pkg.name}
                         </h3>
                       </div>
@@ -327,7 +327,7 @@ export default async function VehicleDetailPage({
                       )}
                     </div>
                     {pkg.description && (
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{pkg.description}</p>
+                      <p className="text-sm text-slate-600 mb-3 line-clamp-2">{pkg.description}</p>
                     )}
                     <div className="flex items-center justify-between">
                       <div>
@@ -337,17 +337,17 @@ export default async function VehicleDetailPage({
                           </span>
                         ) : pkg.pricePerDay ? (
                           <span className="text-lg font-bold text-blue-600">
-                            {formatCurrency(pkg.pricePerDay)}<span className="text-sm font-normal text-gray-500">/day</span>
+                            {formatCurrency(pkg.pricePerDay)}<span className="text-sm font-normal text-slate-500">/day</span>
                           </span>
                         ) : pkg.pricePerHour ? (
                           <span className="text-lg font-bold text-blue-600">
-                            {formatCurrency(pkg.pricePerHour)}<span className="text-sm font-normal text-gray-500">/hour</span>
+                            {formatCurrency(pkg.pricePerHour)}<span className="text-sm font-normal text-slate-500">/hour</span>
                           </span>
                         ) : (
-                          <span className="text-sm text-gray-500">Custom pricing</span>
+                          <span className="text-sm text-slate-500">Custom pricing</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-gray-400 group-hover:text-blue-500 transition-colors">
+                      <div className="flex items-center gap-2 text-slate-400 group-hover:text-blue-500 transition-colors">
                         <span className="text-sm">Details</span>
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -363,11 +363,11 @@ export default async function VehicleDetailPage({
           {/* Rental Policies */}
           {policies.length > 0 && (
             <div className="bg-white rounded-xl p-6 shadow-md mb-6">
-              <h2 className="text-xl font-bold mb-4">Rental Policies</h2>
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Rental Policies</h2>
               <div className="space-y-4">
                 {Object.entries(policiesByCategory).map(([category, categoryPolicies]) => (
                   <div key={category}>
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                       <span>{POLICY_CATEGORY_ICONS[category] || "📄"}</span>
                       {category.charAt(0).toUpperCase() + category.slice(1)} Policies
                     </h3>
@@ -375,11 +375,11 @@ export default async function VehicleDetailPage({
                       {categoryPolicies.map((policy) => (
                         <details
                           key={policy.id}
-                          className="group border border-gray-200 rounded-lg overflow-hidden"
+                          className="group border border-slate-200 rounded-lg overflow-hidden"
                         >
-                          <summary className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
+                          <summary className="flex items-center justify-between p-3 bg-slate-50 cursor-pointer hover:bg-slate-100 transition">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900">
+                              <span className="font-medium text-slate-900">
                                 {policy.title}
                               </span>
                               {policy.isRequired && (
@@ -389,7 +389,7 @@ export default async function VehicleDetailPage({
                               )}
                             </div>
                             <svg
-                              className="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform"
+                              className="w-5 h-5 text-slate-400 group-open:rotate-180 transition-transform"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -397,14 +397,14 @@ export default async function VehicleDetailPage({
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                           </summary>
-                          <div className="p-4 border-t border-gray-200">
+                          <div className="p-4 border-t border-slate-200">
                             {policy.summary && (
-                              <p className="text-sm text-gray-600 mb-3 font-medium">
+                              <p className="text-sm text-slate-600 mb-3 font-medium">
                                 {policy.summary}
                               </p>
                             )}
                             <div
-                              className="prose prose-sm max-w-none text-gray-600"
+                              className="prose prose-sm max-w-none text-slate-600"
                               dangerouslySetInnerHTML={{ __html: policy.content }}
                             />
                           </div>
@@ -419,7 +419,7 @@ export default async function VehicleDetailPage({
 
           {/* Reviews */}
           <div className="bg-white rounded-xl p-6 shadow-md">
-            <h2 className="text-xl font-bold mb-4">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">
               Reviews ({vehicle.reviews.length})
             </h2>
             {vehicle.reviews.length > 0 ? (
@@ -427,10 +427,10 @@ export default async function VehicleDetailPage({
                 {vehicle.reviews.map((review) => (
                   <div
                     key={review.id}
-                    className="border-b border-gray-100 pb-4 last:border-0"
+                    className="border-b border-slate-100 pb-4 last:border-0"
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">
+                      <span className="font-medium text-slate-900">
                         {review.user.name || "Anonymous"}
                       </span>
                       <div className="flex items-center">
@@ -440,7 +440,7 @@ export default async function VehicleDetailPage({
                             className={
                               i < review.rating
                                 ? "text-yellow-500"
-                                : "text-gray-300"
+                                : "text-slate-300"
                             }
                           >
                             ★
@@ -449,16 +449,16 @@ export default async function VehicleDetailPage({
                       </div>
                     </div>
                     {review.comment && (
-                      <p className="text-gray-600">{review.comment}</p>
+                      <p className="text-slate-600">{review.comment}</p>
                     )}
-                    <p className="text-sm text-gray-400 mt-2">
+                    <p className="text-sm text-slate-400 mt-2">
                       {new Date(review.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500">No reviews yet.</p>
+              <p className="text-slate-500">No reviews yet.</p>
             )}
           </div>
         </div>

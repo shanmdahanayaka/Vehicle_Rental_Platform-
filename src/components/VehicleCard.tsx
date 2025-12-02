@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { formatCurrency } from "@/config/site";
+import FavoriteButton from "./FavoriteButton";
+import AddToCartButton from "./AddToCartButton";
 
 interface VehicleCardProps {
   id: string;
@@ -101,16 +103,9 @@ export default function VehicleCard({
         </div>
 
         {/* Favorite Button */}
-        <button className="absolute top-3 right-3 w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors shadow-sm">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            />
-          </svg>
-        </button>
+        <div className="absolute top-3 right-3">
+          <FavoriteButton vehicleId={id} size="sm" />
+        </div>
 
         {/* Rating Badge */}
         {reviewCount > 0 && (
@@ -231,25 +226,33 @@ export default function VehicleCard({
             </span>
             <span className="text-slate-500 text-sm">/day</span>
           </div>
-          <Link
-            href={`/vehicles/${id}`}
-            className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2.5 rounded-xl font-medium text-sm hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-sm hover:shadow-md"
-          >
-            View Details
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          <div className="flex items-center gap-2">
+            <AddToCartButton
+              vehicleId={id}
+              vehicleName={name}
+              location={location || ""}
+              variant="icon"
+            />
+            <Link
+              href={`/vehicles/${id}`}
+              className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2.5 rounded-xl font-medium text-sm hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-sm hover:shadow-md"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </Link>
+              View
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

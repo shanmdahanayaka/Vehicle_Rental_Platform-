@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { formatCurrency, currency } from "@/config/site";
 
 interface Policy {
   id: string;
@@ -225,7 +226,7 @@ export default function BookingForm({
 
   return (
     <div className="bg-white rounded-xl p-6 shadow-md sticky top-24">
-      <h2 className="text-xl font-bold mb-4">Book {vehicleName}</h2>
+      <h2 className="text-xl font-bold text-slate-900 mb-4">Book {vehicleName}</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -235,7 +236,7 @@ export default function BookingForm({
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1">
             Pickup Date
           </label>
           <input
@@ -243,13 +244,13 @@ export default function BookingForm({
             min={today}
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1">
             Return Date
           </label>
           <input
@@ -257,41 +258,41 @@ export default function BookingForm({
             min={startDate || today}
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1">
             Pickup Location
           </label>
           <input
             type="text"
             value={pickupLocation}
             onChange={(e) => setPickupLocation(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1">
             Drop-off Location
           </label>
           <input
             type="text"
             value={dropoffLocation}
             onChange={(e) => setDropoffLocation(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
             required
           />
         </div>
 
         {/* Packages Section */}
         {!packagesLoading && packages.length > 0 && (
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          <div className="border-t border-slate-200 pt-4">
+            <h3 className="text-sm font-semibold text-slate-700 mb-3">
               Add-ons & Packages
             </h3>
             <div className="space-y-2">
@@ -307,7 +308,7 @@ export default function BookingForm({
                       className={`w-full text-left rounded-lg p-3 transition border-2 ${
                         isSelected
                           ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
+                          : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -316,9 +317,9 @@ export default function BookingForm({
                             {PACKAGE_TYPE_ICONS[pkg.type] || "📦"}
                           </span>
                           <div>
-                            <p className="font-medium text-sm">{pkg.name}</p>
+                            <p className="font-medium text-sm text-slate-900">{pkg.name}</p>
                             {pkg.description && (
-                              <p className="text-xs text-gray-500">{pkg.description}</p>
+                              <p className="text-xs text-slate-500">{pkg.description}</p>
                             )}
                             {pkg.discount && pkg.discount > 0 && (
                               <span className="inline-flex mt-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded">
@@ -330,19 +331,19 @@ export default function BookingForm({
                         <div className="text-right">
                           {price > 0 ? (
                             <p className="font-semibold text-blue-600">
-                              +${price.toFixed(2)}
+                              +{formatCurrency(price)}
                             </p>
                           ) : pkg.discount ? (
                             <p className="text-sm text-green-600">Discount only</p>
                           ) : (
-                            <p className="text-sm text-gray-400">Included</p>
+                            <p className="text-sm text-slate-400">Included</p>
                           )}
                         </div>
                       </div>
 
                       {/* Show policies attached to this package */}
                       {pkg.policies.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-gray-100">
+                        <div className="mt-2 pt-2 border-t border-slate-100">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -360,16 +361,16 @@ export default function BookingForm({
                               {pkg.policies.map((policy) => (
                                 <div
                                   key={policy.id}
-                                  className="text-xs p-2 bg-gray-50 rounded"
+                                  className="text-xs p-2 bg-slate-50 rounded"
                                 >
-                                  <p className="font-medium">
+                                  <p className="font-medium text-slate-900">
                                     {policy.title}
                                     {policy.isRequired && (
                                       <span className="ml-1 text-red-500">*</span>
                                     )}
                                   </p>
                                   {policy.summary && (
-                                    <p className="text-gray-500 mt-0.5">{policy.summary}</p>
+                                    <p className="text-slate-500 mt-0.5">{policy.summary}</p>
                                   )}
                                 </div>
                               ))}
@@ -409,31 +410,31 @@ export default function BookingForm({
         )}
 
         {/* Price Breakdown */}
-        <div className="border-t pt-4 space-y-2">
+        <div className="border-t border-slate-200 pt-4 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">
-              ${pricePerDay} x {days} days
+            <span className="text-slate-600">
+              {formatCurrency(pricePerDay)} x {days} days
             </span>
-            <span>${(pricePerDay * days).toFixed(2)}</span>
+            <span className="text-slate-900">{formatCurrency(pricePerDay * days)}</span>
           </div>
 
           {maxDiscount > 0 && (
             <div className="flex justify-between text-sm text-green-600">
               <span>Package discount ({maxDiscount}%)</span>
-              <span>-${((pricePerDay * days * maxDiscount) / 100).toFixed(2)}</span>
+              <span>-{formatCurrency((pricePerDay * days * maxDiscount) / 100)}</span>
             </div>
           )}
 
           {packagesPrice > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Add-ons</span>
-              <span>+${packagesPrice.toFixed(2)}</span>
+              <span className="text-slate-600">Add-ons</span>
+              <span className="text-slate-900">+{formatCurrency(packagesPrice)}</span>
             </div>
           )}
 
-          <div className="flex justify-between text-lg font-bold pt-2 border-t">
-            <span>Total</span>
-            <span className="text-blue-600">${totalPrice.toFixed(2)}</span>
+          <div className="flex justify-between text-lg font-bold pt-2 border-t border-slate-200">
+            <span className="text-slate-900">Total</span>
+            <span className="text-blue-600">{formatCurrency(totalPrice)}</span>
           </div>
         </div>
 
