@@ -25,6 +25,7 @@ export const CHANNELS = {
   // Admin channels (private)
   adminNotifications: "private-admin-notifications",
   adminChat: "private-admin-chat",
+  adminBookings: "private-admin-bookings",
 };
 
 // Event names
@@ -43,6 +44,10 @@ export const EVENTS = {
   USER_JOINED: "user-joined",
   USER_LEFT: "user-left",
   CONVERSATION_CLOSED: "conversation-closed",
+
+  // Booking events
+  NEW_BOOKING: "new-booking",
+  BOOKING_UPDATED: "booking-updated",
 
   // Presence events
   MEMBER_ADDED: "pusher:member_added",

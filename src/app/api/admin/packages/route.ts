@@ -57,21 +57,48 @@ export async function GET(request: Request) {
                 name: true,
                 brand: true,
                 model: true,
+                pricePerDay: true,
               },
             },
           },
+        },
+        customCosts: {
+          where: { isActive: true },
+          orderBy: { sortOrder: "asc" },
         },
         _count: {
           select: {
             vehiclePackages: true,
             bookings: true,
+            customCosts: true,
           },
         },
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     });
 
-    return NextResponse.json(packages);
+    // Format decimal values
+    const formattedPackages = packages.map((pkg) => ({
+      ...pkg,
+      basePrice: pkg.basePrice ? Number(pkg.basePrice) : null,
+      pricePerDay: pkg.pricePerDay ? Number(pkg.pricePerDay) : null,
+      pricePerHour: pkg.pricePerHour ? Number(pkg.pricePerHour) : null,
+      discount: pkg.discount ? Number(pkg.discount) : null,
+      customCosts: pkg.customCosts.map((cost) => ({
+        ...cost,
+        price: Number(cost.price),
+      })),
+      vehiclePackages: pkg.vehiclePackages.map((vp) => ({
+        ...vp,
+        customPrice: vp.customPrice ? Number(vp.customPrice) : null,
+        vehicle: {
+          ...vp.vehicle,
+          pricePerDay: Number(vp.vehicle.pricePerDay),
+        },
+      })),
+    }));
+
+    return NextResponse.json(formattedPackages);
   } catch (error) {
     console.error("Error fetching packages:", error);
     return NextResponse.json(
@@ -110,8 +137,12 @@ export async function POST(request: Request) {
       isGlobal,
       sortOrder,
       icon,
+      images,
+      videoUrl,
       policyIds,
       vehicleIds,
+      customCosts,
+      vehiclePackages: vehiclePackagesData,
     } = body;
 
     if (!name || !type) {
@@ -121,21 +152,39 @@ export async function POST(request: Request) {
       );
     }
 
+    // Build vehicle packages data - support both old format (vehicleIds) and new format (vehiclePackages with customPrice)
+    let vehiclePackagesCreate;
+    if (vehiclePackagesData?.length) {
+      // New format: array of { vehicleId, customPrice }
+      vehiclePackagesCreate = vehiclePackagesData.map((vp: { vehicleId: string; customPrice?: number | string }) => ({
+        vehicleId: vp.vehicleId,
+        customPrice: vp.customPrice ? parseFloat(String(vp.customPrice)) : null,
+      }));
+    } else if (!isGlobal && vehicleIds?.length) {
+      // Old format: array of vehicle IDs (backwards compatible)
+      vehiclePackagesCreate = vehicleIds.map((vehicleId: string) => ({
+        vehicleId,
+        customPrice: null,
+      }));
+    }
+
     const pkg = await prisma.package.create({
       data: {
         name,
         description,
         type,
-        basePrice: basePrice ? parseFloat(basePrice) : null,
-        pricePerDay: pricePerDay ? parseFloat(pricePerDay) : null,
-        pricePerHour: pricePerHour ? parseFloat(pricePerHour) : null,
-        discount: discount ? parseFloat(discount) : null,
-        minDuration: minDuration ? parseInt(minDuration) : null,
-        maxDuration: maxDuration ? parseInt(maxDuration) : null,
+        basePrice: basePrice ? parseFloat(String(basePrice)) : null,
+        pricePerDay: pricePerDay ? parseFloat(String(pricePerDay)) : null,
+        pricePerHour: pricePerHour ? parseFloat(String(pricePerHour)) : null,
+        discount: discount ? parseFloat(String(discount)) : null,
+        minDuration: minDuration ? parseInt(String(minDuration)) : null,
+        maxDuration: maxDuration ? parseInt(String(maxDuration)) : null,
         isActive: isActive ?? true,
         isGlobal: isGlobal ?? true,
-        sortOrder: sortOrder ? parseInt(sortOrder) : 0,
+        sortOrder: sortOrder ? parseInt(String(sortOrder)) : 0,
         icon,
+        images: images ? JSON.stringify(images) : null,
+        videoUrl: videoUrl || null,
         policies: policyIds?.length
           ? {
               create: policyIds.map((policyId: string) => ({
@@ -143,10 +192,19 @@ export async function POST(request: Request) {
               })),
             }
           : undefined,
-        vehiclePackages: !isGlobal && vehicleIds?.length
+        vehiclePackages: vehiclePackagesCreate?.length
           ? {
-              create: vehicleIds.map((vehicleId: string) => ({
-                vehicleId,
+              create: vehiclePackagesCreate,
+            }
+          : undefined,
+        customCosts: customCosts?.length
+          ? {
+              create: customCosts.map((cost: { name: string; description?: string; price: number | string; isOptional?: boolean; sortOrder?: number }, index: number) => ({
+                name: cost.name,
+                description: cost.description || null,
+                price: parseFloat(String(cost.price)),
+                isOptional: cost.isOptional ?? false,
+                sortOrder: cost.sortOrder ?? index,
               })),
             }
           : undefined,
@@ -165,14 +223,39 @@ export async function POST(request: Request) {
                 name: true,
                 brand: true,
                 model: true,
+                pricePerDay: true,
               },
             },
           },
         },
+        customCosts: {
+          orderBy: { sortOrder: "asc" },
+        },
       },
     });
 
-    return NextResponse.json(pkg, { status: 201 });
+    // Format response
+    const formattedPkg = {
+      ...pkg,
+      basePrice: pkg.basePrice ? Number(pkg.basePrice) : null,
+      pricePerDay: pkg.pricePerDay ? Number(pkg.pricePerDay) : null,
+      pricePerHour: pkg.pricePerHour ? Number(pkg.pricePerHour) : null,
+      discount: pkg.discount ? Number(pkg.discount) : null,
+      customCosts: pkg.customCosts.map((cost) => ({
+        ...cost,
+        price: Number(cost.price),
+      })),
+      vehiclePackages: pkg.vehiclePackages.map((vp) => ({
+        ...vp,
+        customPrice: vp.customPrice ? Number(vp.customPrice) : null,
+        vehicle: {
+          ...vp.vehicle,
+          pricePerDay: Number(vp.vehicle.pricePerDay),
+        },
+      })),
+    };
+
+    return NextResponse.json(formattedPkg, { status: 201 });
   } catch (error) {
     console.error("Error creating package:", error);
     return NextResponse.json(

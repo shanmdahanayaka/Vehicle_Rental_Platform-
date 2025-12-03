@@ -41,6 +41,22 @@ async function getUserBookings(userId: string) {
           id: true,
         },
       },
+      // Package booking data
+      primaryPackage: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          images: true,
+        },
+      },
+      customCosts: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -48,6 +64,9 @@ async function getUserBookings(userId: string) {
   return bookings.map((booking) => ({
     ...booking,
     totalPrice: Number(booking.totalPrice),
+    packageBasePrice: booking.packageBasePrice ? Number(booking.packageBasePrice) : null,
+    vehiclePackagePrice: booking.vehiclePackagePrice ? Number(booking.vehiclePackagePrice) : null,
+    customCostsTotal: booking.customCostsTotal ? Number(booking.customCostsTotal) : null,
     vehicle: {
       ...booking.vehicle,
       pricePerDay: Number(booking.vehicle.pricePerDay),
@@ -60,6 +79,14 @@ async function getUserBookings(userId: string) {
       balanceDue: Number(booking.invoice.balanceDue),
     } : null,
     documentCount: booking.documents.length,
+    primaryPackage: booking.primaryPackage ? {
+      ...booking.primaryPackage,
+      images: parseImages(booking.primaryPackage.images),
+    } : null,
+    customCosts: booking.customCosts.map((cc) => ({
+      ...cc,
+      price: Number(cc.price),
+    })),
   }));
 }
 
@@ -74,12 +101,19 @@ async function getBookingStats(userId: string) {
   return { total, active, completed };
 }
 
-export default async function BookingsPage() {
+export default async function BookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ success?: string }>;
+}) {
   const session = await auth();
 
   if (!session) {
     redirect("/login");
   }
+
+  const params = await searchParams;
+  const showSuccess = params.success === "true";
 
   const bookings = await getUserBookings(session.user.id);
   const stats = await getBookingStats(session.user.id);
@@ -216,6 +250,21 @@ export default async function BookingsPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Success Message */}
+        {showSuccess && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-green-800">Booking Created Successfully!</h3>
+              <p className="text-sm text-green-600">Your booking has been submitted and is pending confirmation. We&apos;ll notify you once it&apos;s confirmed.</p>
+            </div>
+          </div>
+        )}
+
         {bookings.length > 0 ? (
           <div className="space-y-6">
             {bookings.map((booking) => {
@@ -224,16 +273,65 @@ export default async function BookingsPage() {
                 (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) /
                   (1000 * 60 * 60 * 24)
               );
+              const isPackageBooking = booking.isPackageBooking && booking.primaryPackage;
+
+              // Package type labels
+              const packageTypeLabels: Record<string, string> = {
+                WEDDING: "Wedding",
+                AIRPORT: "Airport Transfer",
+                TOURISM: "Tourism",
+                CORPORATE: "Corporate",
+                SELF_DRIVE: "Self Drive",
+                WITH_DRIVER: "With Driver",
+                LONG_TERM: "Long Term",
+                EVENT: "Event",
+                HONEYMOON: "Honeymoon",
+                PILGRIMAGE: "Pilgrimage",
+                ADVENTURE: "Adventure",
+                CUSTOM: "Custom",
+              };
 
               return (
                 <div
                   key={booking.id}
-                  className="bg-white rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
+                  className={`rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 ${
+                    isPackageBooking ? "bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100" : "bg-white"
+                  }`}
                 >
+                  {/* Package Booking Header */}
+                  {isPackageBooking && booking.primaryPackage && (
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-white font-bold">{booking.primaryPackage.name}</p>
+                          <p className="text-purple-200 text-sm">
+                            {packageTypeLabels[booking.primaryPackage.type] || booking.primaryPackage.type} Package
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${statusConfig.bg} ${statusConfig.text} text-sm font-medium`}>
+                        {statusConfig.icon}
+                        {booking.status}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex flex-col lg:flex-row">
-                    {/* Vehicle Image */}
+                    {/* Image Section */}
                     <div className="lg:w-72 h-48 lg:h-auto relative bg-slate-100 flex-shrink-0">
-                      {booking.vehicle.images && booking.vehicle.images[0] ? (
+                      {isPackageBooking && booking.primaryPackage?.images?.[0] ? (
+                        <Image
+                          src={booking.primaryPackage.images[0]}
+                          alt={booking.primaryPackage.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : booking.vehicle.images && booking.vehicle.images[0] ? (
                         <Image
                           src={booking.vehicle.images[0]}
                           alt={booking.vehicle.name}
@@ -248,38 +346,109 @@ export default async function BookingsPage() {
                           </svg>
                         </div>
                       )}
-                      {/* Status Badge on Image */}
-                      <div className={`absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full ${statusConfig.bg} ${statusConfig.text} text-sm font-medium`}>
-                        {statusConfig.icon}
-                        {booking.status}
-                      </div>
+                      {/* Status Badge on Image (only for non-package bookings) */}
+                      {!isPackageBooking && (
+                        <div className={`absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full ${statusConfig.bg} ${statusConfig.text} text-sm font-medium`}>
+                          {statusConfig.icon}
+                          {booking.status}
+                        </div>
+                      )}
+                      {/* Vehicle info overlay for package bookings */}
+                      {isPackageBooking && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                          <p className="text-white font-semibold">{booking.vehicle.name}</p>
+                          <p className="text-white/80 text-sm">{booking.vehicle.brand} {booking.vehicle.model}</p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Booking Details */}
                     <div className="flex-1 p-6">
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
                         <div>
-                          <Link
-                            href={`/vehicles/${booking.vehicleId}`}
-                            className="text-xl font-bold text-slate-900 hover:text-blue-600 transition-colors"
-                          >
-                            {booking.vehicle.name}
-                          </Link>
-                          <p className="text-slate-500">
-                            {booking.vehicle.brand} {booking.vehicle.model} • {booking.vehicle.year}
-                          </p>
+                          {!isPackageBooking && (
+                            <>
+                              <Link
+                                href={`/vehicles/${booking.vehicleId}`}
+                                className="text-xl font-bold text-slate-900 hover:text-blue-600 transition-colors"
+                              >
+                                {booking.vehicle.name}
+                              </Link>
+                              <p className="text-slate-500">
+                                {booking.vehicle.brand} {booking.vehicle.model} • {booking.vehicle.year}
+                              </p>
+                            </>
+                          )}
+                          {isPackageBooking && (
+                            <div className="text-slate-600 text-sm">
+                              <span className="font-medium">Vehicle:</span> {booking.vehicle.brand} {booking.vehicle.model} ({booking.vehicle.year})
+                            </div>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-slate-500">Total Price</p>
-                          <p className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                          <p className={`text-2xl font-bold text-transparent bg-clip-text ${
+                            isPackageBooking
+                              ? "bg-gradient-to-r from-purple-600 to-pink-600"
+                              : "bg-gradient-to-r from-blue-600 to-purple-600"
+                          }`}>
                             {formatCurrency(booking.totalPrice)}
                           </p>
                           <p className="text-xs text-slate-400">{days} day{days !== 1 ? "s" : ""}</p>
                         </div>
                       </div>
 
+                      {/* Package Pricing Breakdown */}
+                      {isPackageBooking && (booking.packageBasePrice || booking.customCostsTotal) && (
+                        <div className="mb-4 p-3 bg-white/80 rounded-xl border border-purple-100">
+                          <p className="text-xs font-semibold text-purple-700 mb-2">Price Breakdown</p>
+                          <div className="space-y-1 text-sm">
+                            {booking.packageBasePrice && booking.packageBasePrice > 0 && (
+                              <div className="flex justify-between text-slate-600">
+                                <span>Package Base</span>
+                                <span>{formatCurrency(booking.packageBasePrice)}</span>
+                              </div>
+                            )}
+                            {booking.vehiclePackagePrice && (
+                              <div className="flex justify-between text-slate-600">
+                                <span>Vehicle ({days} days × {formatCurrency(booking.vehiclePackagePrice)})</span>
+                                <span>{formatCurrency(booking.vehiclePackagePrice * days)}</span>
+                              </div>
+                            )}
+                            {booking.customCostsTotal && booking.customCostsTotal > 0 && (
+                              <div className="flex justify-between text-slate-600">
+                                <span>Additional Services</span>
+                                <span>{formatCurrency(booking.customCostsTotal)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Included Services for Package Bookings */}
+                      {isPackageBooking && booking.customCosts && booking.customCosts.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-xs font-semibold text-purple-700 mb-2">Included Services</p>
+                          <div className="flex flex-wrap gap-2">
+                            {booking.customCosts.map((cost) => (
+                              <span
+                                key={cost.id}
+                                className="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                {cost.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Booking Info Grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-t border-b border-slate-100">
+                      <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-t border-b ${
+                        isPackageBooking ? "border-purple-100" : "border-slate-100"
+                      }`}>
                         <div>
                           <div className="flex items-center gap-2 text-slate-400 mb-1">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -293,9 +462,6 @@ export default async function BookingsPage() {
                               day: "numeric",
                               year: "numeric",
                             })}
-                          </p>
-                          <p className="text-xs text-blue-600 font-medium">
-                            {new Date(booking.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
                         <div>
@@ -312,9 +478,6 @@ export default async function BookingsPage() {
                               year: "numeric",
                             })}
                           </p>
-                          <p className="text-xs text-blue-600 font-medium">
-                            {new Date(booking.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
                         </div>
                         <div>
                           <div className="flex items-center gap-2 text-slate-400 mb-1">
@@ -324,7 +487,7 @@ export default async function BookingsPage() {
                             </svg>
                             <span className="text-xs font-medium">Location</span>
                           </div>
-                          <p className="font-semibold text-slate-900">{booking.pickupLocation}</p>
+                          <p className="font-semibold text-slate-900 text-sm truncate">{booking.pickupLocation}</p>
                         </div>
                         <div>
                           <div className="flex items-center gap-2 text-slate-400 mb-1">
@@ -366,9 +529,21 @@ export default async function BookingsPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-3">
+                          {isPackageBooking && booking.primaryPackage && (
+                            <Link
+                              href={`/packages/${booking.primaryPackage.id}`}
+                              className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
+                            >
+                              View Package
+                            </Link>
+                          )}
                           <Link
                             href={`/vehicles/${booking.vehicleId}`}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                            className={`text-sm font-medium transition-colors ${
+                              isPackageBooking
+                                ? "text-slate-500 hover:text-slate-700"
+                                : "text-blue-600 hover:text-blue-700"
+                            }`}
                           >
                             View Vehicle
                           </Link>
@@ -391,14 +566,17 @@ export default async function BookingsPage() {
                           {(booking.status === "PENDING" || booking.status === "CONFIRMED") && (
                             <CancelBookingButton
                               bookingId={booking.id}
-                              vehicleName={booking.vehicle.name}
+                              vehicleName={isPackageBooking ? booking.primaryPackage?.name || booking.vehicle.name : booking.vehicle.name}
                             />
                           )}
                           {booking.status === "COMPLETED" && !booking.invoice && (
                             <Link
                               href={`/vehicles/${booking.vehicleId}#reviews`}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
-                            >
+                              className={`inline-flex items-center gap-1.5 px-4 py-2 text-white text-sm font-medium rounded-lg transition-all ${
+                                isPackageBooking
+                                  ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                                  : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                              }`}>
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                               </svg>

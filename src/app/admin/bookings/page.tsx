@@ -28,6 +28,24 @@ async function getBookings() {
           },
         },
       },
+      // Package booking fields
+      primaryPackage: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+        },
+      },
+      customCosts: {
+        include: {
+          packageCustomCost: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -45,6 +63,14 @@ async function getBookings() {
     discountAmount: booking.discountAmount ? Number(booking.discountAmount) : null,
     finalAmount: booking.finalAmount ? Number(booking.finalAmount) : null,
     balanceDue: booking.balanceDue ? Number(booking.balanceDue) : null,
+    // Package booking fields
+    packageBasePrice: booking.packageBasePrice ? Number(booking.packageBasePrice) : null,
+    vehiclePackagePrice: booking.vehiclePackagePrice ? Number(booking.vehiclePackagePrice) : null,
+    customCostsTotal: booking.customCostsTotal ? Number(booking.customCostsTotal) : null,
+    customCosts: booking.customCosts.map((cc) => ({
+      ...cc,
+      price: Number(cc.price),
+    })),
     payment: booking.payment
       ? { ...booking.payment, amount: Number(booking.payment.amount) }
       : null,

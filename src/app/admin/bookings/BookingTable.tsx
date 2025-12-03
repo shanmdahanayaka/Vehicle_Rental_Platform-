@@ -5,6 +5,7 @@ import { formatCurrency, mileageConfig, fuelLevels, paymentMethods, documentType
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CreateBookingModal from "./CreateBookingModal";
+import { getPusherClient, CHANNELS, EVENTS } from "@/lib/pusher-client";
 
 interface Booking {
   id: string;
@@ -53,6 +54,26 @@ interface Booking {
   discountReason: string | null;
   finalAmount: number | null;
   balanceDue: number | null;
+  // Package booking fields
+  isPackageBooking: boolean;
+  primaryPackageId: string | null;
+  packageBasePrice: number | null;
+  vehiclePackagePrice: number | null;
+  customCostsTotal: number | null;
+  primaryPackage: {
+    id: string;
+    name: string;
+    type: string;
+  } | null;
+  customCosts: {
+    id: string;
+    name: string;
+    price: number;
+    packageCustomCost: {
+      id: string;
+      name: string;
+    };
+  }[];
   user: {
     id: string;
     name: string | null;
@@ -104,15 +125,39 @@ interface BookingTableProps {
 
 type ModalType = "confirm" | "collect" | "complete" | "invoice" | "payment" | "view" | null;
 
+type BookingTypeFilter = "all" | "regular" | "package";
+
 export default function BookingTable({ initialBookings }: BookingTableProps) {
   const router = useRouter();
   const [bookings, setBookings] = useState(initialBookings);
   const [statusFilter, setStatusFilter] = useState("");
+  const [bookingTypeFilter, setBookingTypeFilter] = useState<BookingTypeFilter>("all");
 
   // Sync bookings state when initialBookings prop changes (after router.refresh())
   useEffect(() => {
     setBookings(initialBookings);
   }, [initialBookings]);
+
+  // Subscribe to real-time booking updates
+  useEffect(() => {
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(CHANNELS.adminBookings);
+
+    channel.bind(EVENTS.NEW_BOOKING, () => {
+      // Refresh the page data when a new booking is created
+      router.refresh();
+    });
+
+    channel.bind(EVENTS.BOOKING_UPDATED, () => {
+      // Refresh the page data when a booking is updated
+      router.refresh();
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(CHANNELS.adminBookings);
+    };
+  }, [router]);
 
   const [search, setSearch] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -120,6 +165,10 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Count bookings by type
+  const regularCount = bookings.filter((b) => !b.isPackageBooking).length;
+  const packageCount = bookings.filter((b) => b.isPackageBooking).length;
 
   // Form states for different modals
   const [confirmForm, setConfirmForm] = useState({
@@ -153,6 +202,8 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
     actualStartTime: "",
     actualEndDate: "",
     actualEndTime: "",
+    // Package booking option - use flat vehicle rate (ignore days)
+    useFlatVehicleRate: false,
   });
 
   const [paymentForm, setPaymentForm] = useState({
@@ -184,8 +235,13 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
       !search ||
       b.user.name?.toLowerCase().includes(search.toLowerCase()) ||
       b.user.email.toLowerCase().includes(search.toLowerCase()) ||
-      b.vehicle.name.toLowerCase().includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
+      b.vehicle.name.toLowerCase().includes(search.toLowerCase()) ||
+      b.primaryPackage?.name?.toLowerCase().includes(search.toLowerCase());
+    const matchesType =
+      bookingTypeFilter === "all" ||
+      (bookingTypeFilter === "package" && b.isPackageBooking) ||
+      (bookingTypeFilter === "regular" && !b.isPackageBooking);
+    return matchesStatus && matchesSearch && matchesType;
   });
 
   const openModal = (booking: Booking, type: ModalType) => {
@@ -468,11 +524,20 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
     // Calculate rental days based on ACTUAL dates (collection to return)
     // NOT booking dates - use actual vehicle usage period
     const rentalDays = getActualRentalDays();
-    const dailyRate = selectedBooking.vehicle.pricePerDay;
-    const baseRental = dailyRate * rentalDays;
 
-    // Package charges
-    const packageCharges = selectedBooking.packages?.reduce((sum, p) => sum + p.price, 0) || 0;
+    // For package bookings, use the stored vehiclePackagePrice
+    const dailyRate = selectedBooking.isPackageBooking && selectedBooking.vehiclePackagePrice
+      ? selectedBooking.vehiclePackagePrice
+      : selectedBooking.vehicle.pricePerDay;
+
+    // For package bookings with flat rate option, don't multiply by days
+    const useFlatRate = selectedBooking.isPackageBooking && completeForm.useFlatVehicleRate;
+    const baseRental = useFlatRate ? dailyRate : dailyRate * rentalDays;
+
+    // Package charges - for package bookings, use stored packageBasePrice + customCostsTotal
+    const packageCharges = selectedBooking.isPackageBooking
+      ? (selectedBooking.packageBasePrice || 0) + (selectedBooking.customCostsTotal || 0)
+      : selectedBooking.packages?.reduce((sum, p) => sum + p.price, 0) || 0;
 
     // Additional charges
     const extraMileageCost = mileage?.extraCost || 0;
@@ -502,7 +567,11 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
       discountAmount,
       finalAmount,
       advancePaid,
-      balanceDue
+      balanceDue,
+      isPackageBooking: selectedBooking.isPackageBooking,
+      packageBasePrice: selectedBooking.packageBasePrice || 0,
+      customCostsTotal: selectedBooking.customCostsTotal || 0,
+      useFlatRate,
     };
   };
 
@@ -580,6 +649,43 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
         </div>
       </div>
 
+      {/* Booking Type Tabs */}
+      <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit">
+        <button
+          onClick={() => setBookingTypeFilter("all")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            bookingTypeFilter === "all"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          All Bookings ({bookings.length})
+        </button>
+        <button
+          onClick={() => setBookingTypeFilter("regular")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            bookingTypeFilter === "regular"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Regular ({regularCount})
+        </button>
+        <button
+          onClick={() => setBookingTypeFilter("package")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+            bookingTypeFilter === "package"
+              ? "bg-white text-purple-600 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          Package Bookings ({packageCount})
+        </button>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center flex-1">
@@ -599,7 +705,7 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
             </svg>
             <input
               type="text"
-              placeholder="Search by customer or vehicle..."
+              placeholder="Search by customer, vehicle, or package..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
@@ -667,14 +773,32 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
                     <tr key={booking.id} className="group hover:bg-slate-50 transition">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-medium text-white">
-                            {booking.user.name?.charAt(0) || "U"}
+                          <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium text-white ${
+                            booking.isPackageBooking
+                              ? "bg-gradient-to-br from-purple-500 to-pink-600"
+                              : "bg-gradient-to-br from-blue-500 to-purple-600"
+                          }`}>
+                            {booking.isPackageBooking ? (
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                              </svg>
+                            ) : (
+                              booking.user.name?.charAt(0) || "U"
+                            )}
                           </div>
                           <div>
                             <p className="font-medium text-slate-900">
                               {booking.user.name || "Unknown"}
                             </p>
                             <p className="text-xs text-slate-500">{booking.user.email}</p>
+                            {booking.isPackageBooking && booking.primaryPackage && (
+                              <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                                {booking.primaryPackage.name}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -683,6 +807,11 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
                         <p className="text-xs text-slate-500">
                           {booking.vehicle.brand} {booking.vehicle.model}
                         </p>
+                        {booking.isPackageBooking && booking.vehiclePackagePrice && (
+                          <p className="text-xs text-purple-600 font-medium mt-0.5">
+                            Package rate: {formatCurrency(booking.vehiclePackagePrice)}/day
+                          </p>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-sm text-slate-700">
@@ -1608,21 +1737,60 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
                     </div>
                   </div>
 
+                  {/* Package Booking Options */}
+                  {selectedBooking?.isPackageBooking && (
+                    <div className="p-3 bg-purple-50 rounded-xl border border-purple-200">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={completeForm.useFlatVehicleRate}
+                          onChange={(e) => setCompleteForm({ ...completeForm, useFlatVehicleRate: e.target.checked })}
+                          className="w-4 h-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-purple-800">Use Flat Vehicle Rate</span>
+                          <p className="text-xs text-purple-600">Ignore day count - charge vehicle price as a single flat rate instead of per-day</p>
+                        </div>
+                      </label>
+                    </div>
+                  )}
+
                   {/* Payment Summary Preview */}
                   {paymentPreview && (
                     <div className="p-4 bg-gradient-to-br from-purple-50 to-slate-50 rounded-xl border border-purple-200">
-                      <p className="text-sm font-semibold text-purple-700 mb-3">Payment Summary Preview</p>
+                      <p className="text-sm font-semibold text-purple-700 mb-3">
+                        Payment Summary Preview
+                        {paymentPreview.isPackageBooking && (
+                          <span className="ml-2 text-xs font-normal text-purple-500">(Package Booking)</span>
+                        )}
+                      </p>
                       <div className="space-y-2 text-sm">
-                        {/* Base Rental with breakdown */}
+                        {/* Vehicle Rental with breakdown */}
                         <div className="flex justify-between">
                           <span className="text-slate-600">
-                            Base Rental ({paymentPreview.rentalDays} days × {formatCurrency(paymentPreview.dailyRate)})
+                            {paymentPreview.useFlatRate
+                              ? `Vehicle Rental (Flat Rate)`
+                              : `Vehicle Rental (${paymentPreview.rentalDays} days × ${formatCurrency(paymentPreview.dailyRate)})`
+                            }
                           </span>
                           <span className="font-medium text-slate-900">{formatCurrency(paymentPreview.baseRental)}</span>
                         </div>
 
-                        {/* Package Charges */}
-                        {paymentPreview.packageCharges > 0 && (
+                        {/* Package Charges - show breakdown for package bookings */}
+                        {paymentPreview.isPackageBooking && paymentPreview.packageBasePrice > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Package Base Price</span>
+                            <span className="font-medium text-slate-900">+{formatCurrency(paymentPreview.packageBasePrice)}</span>
+                          </div>
+                        )}
+                        {paymentPreview.isPackageBooking && paymentPreview.customCostsTotal > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Additional Services</span>
+                            <span className="font-medium text-slate-900">+{formatCurrency(paymentPreview.customCostsTotal)}</span>
+                          </div>
+                        )}
+                        {/* Regular package charges (for non-package bookings) */}
+                        {!paymentPreview.isPackageBooking && paymentPreview.packageCharges > 0 && (
                           <div className="flex justify-between">
                             <span className="text-slate-600">Package Charges</span>
                             <span className="font-medium text-slate-900">+{formatCurrency(paymentPreview.packageCharges)}</span>

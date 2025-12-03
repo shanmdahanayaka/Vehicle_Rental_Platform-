@@ -16,6 +16,22 @@ interface Vehicle {
   name: string;
   brand: string;
   model: string;
+  pricePerDay: number;
+}
+
+interface CustomCost {
+  id?: string;
+  name: string;
+  description?: string;
+  price: number;
+  isOptional: boolean;
+  sortOrder: number;
+}
+
+interface VehiclePackage {
+  vehicleId: string;
+  customPrice: number | null;
+  vehicle: Vehicle;
 }
 
 interface Package {
@@ -33,34 +49,46 @@ interface Package {
   isGlobal: boolean;
   sortOrder: number;
   icon: string | null;
+  images: string | null;
+  videoUrl: string | null;
   policies: { policy: Policy }[];
-  vehiclePackages: { vehicle: Vehicle }[];
+  vehiclePackages: VehiclePackage[];
+  customCosts: CustomCost[];
   _count: {
     vehiclePackages: number;
     bookings: number;
+    customCosts: number;
   };
 }
 
 const PACKAGE_TYPE_LABELS: Record<PackageType, string> = {
-  DAILY: "Daily Rental",
-  WEEKLY: "Weekly Rental",
-  MONTHLY: "Monthly Rental",
-  AIRPORT_PICKUP: "Airport Pickup",
-  AIRPORT_DROP: "Airport Drop",
-  AIRPORT_ROUND: "Airport Round Trip",
-  HOURLY: "Hourly Rental",
+  WEDDING: "Wedding",
+  AIRPORT: "Airport Transfer",
+  TOURISM: "Tourism",
+  CORPORATE: "Corporate",
+  SELF_DRIVE: "Self Drive",
+  WITH_DRIVER: "With Driver",
+  LONG_TERM: "Long Term",
+  EVENT: "Event",
+  HONEYMOON: "Honeymoon",
+  PILGRIMAGE: "Pilgrimage",
+  ADVENTURE: "Adventure",
   CUSTOM: "Custom",
 };
 
 const PACKAGE_TYPE_COLORS: Record<PackageType, string> = {
-  DAILY: "bg-blue-100 text-blue-700",
-  WEEKLY: "bg-green-100 text-green-700",
-  MONTHLY: "bg-purple-100 text-purple-700",
-  AIRPORT_PICKUP: "bg-orange-100 text-orange-700",
-  AIRPORT_DROP: "bg-amber-100 text-amber-700",
-  AIRPORT_ROUND: "bg-yellow-100 text-yellow-700",
-  HOURLY: "bg-cyan-100 text-cyan-700",
-  CUSTOM: "bg-slate-100 text-slate-700",
+  WEDDING: "bg-pink-100 text-pink-700",
+  AIRPORT: "bg-blue-100 text-blue-700",
+  TOURISM: "bg-green-100 text-green-700",
+  CORPORATE: "bg-slate-100 text-slate-700",
+  SELF_DRIVE: "bg-cyan-100 text-cyan-700",
+  WITH_DRIVER: "bg-purple-100 text-purple-700",
+  LONG_TERM: "bg-indigo-100 text-indigo-700",
+  EVENT: "bg-orange-100 text-orange-700",
+  HONEYMOON: "bg-rose-100 text-rose-700",
+  PILGRIMAGE: "bg-amber-100 text-amber-700",
+  ADVENTURE: "bg-emerald-100 text-emerald-700",
+  CUSTOM: "bg-gray-100 text-gray-700",
 };
 
 export default function PackageTable() {
@@ -202,6 +230,9 @@ export default function PackageTable() {
                   Policies
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Custom Costs
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Status
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -212,7 +243,7 @@ export default function PackageTable() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <div className="flex items-center justify-center">
                       <svg className="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -281,6 +312,25 @@ export default function PackageTable() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
+                      {pkg.customCosts && pkg.customCosts.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {pkg.customCosts.slice(0, 2).map((cost, idx) => (
+                            <span key={cost.id || idx} className="inline-flex items-center gap-1 rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
+                              {cost.name}
+                              <span className="font-medium">{formatCurrency(cost.price)}</span>
+                            </span>
+                          ))}
+                          {pkg.customCosts.length > 2 && (
+                            <span className="inline-flex rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                              +{pkg.customCosts.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">No custom costs</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <button
                         onClick={() => handleToggleActive(pkg)}
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${pkg.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
@@ -311,7 +361,7 @@ export default function PackageTable() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <p className="text-slate-500">No packages found. Create your first package!</p>
                   </td>
                 </tr>
@@ -356,10 +406,20 @@ function PackageModal({
   onClose: () => void;
   onSave: () => void;
 }) {
+  // Parse images from JSON string
+  const parseImages = (images: string | null): string[] => {
+    if (!images) return [];
+    try {
+      return JSON.parse(images);
+    } catch {
+      return [];
+    }
+  };
+
   const [formData, setFormData] = useState({
     name: pkg?.name || "",
     description: pkg?.description || "",
-    type: pkg?.type || "DAILY",
+    type: pkg?.type || "CUSTOM",
     basePrice: pkg?.basePrice?.toString() || "",
     pricePerDay: pkg?.pricePerDay?.toString() || "",
     pricePerHour: pkg?.pricePerHour?.toString() || "",
@@ -370,9 +430,22 @@ function PackageModal({
     isGlobal: pkg?.isGlobal ?? true,
     sortOrder: pkg?.sortOrder?.toString() || "0",
     icon: pkg?.icon || "",
+    images: parseImages(pkg?.images),
+    videoUrl: pkg?.videoUrl || "",
     policyIds: pkg?.policies.map((pp) => pp.policy.id) || [],
-    vehicleIds: pkg?.vehiclePackages?.map((vp) => vp.vehicle.id) || [],
+    vehiclePackages: pkg?.vehiclePackages?.map((vp) => ({
+      vehicleId: vp.vehicleId || vp.vehicle.id,
+      customPrice: vp.customPrice?.toString() || "",
+    })) || [],
+    customCosts: pkg?.customCosts?.map((cost) => ({
+      id: cost.id,
+      name: cost.name,
+      description: cost.description || "",
+      price: cost.price?.toString() || "",
+      isOptional: cost.isOptional ?? false,
+    })) || [],
   });
+  const [imageUploading, setImageUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -385,10 +458,35 @@ function PackageModal({
       const url = pkg ? `/api/admin/packages/${pkg.id}` : "/api/admin/packages";
       const method = pkg ? "PATCH" : "POST";
 
+      // Format data for API
+      const submitData = {
+        ...formData,
+        // Include images array (will be JSON stringified on server)
+        images: formData.images.length > 0 ? formData.images : null,
+        // Include video URL
+        videoUrl: formData.videoUrl || null,
+        // Format custom costs - filter out empty entries
+        customCosts: formData.customCosts
+          .filter((cost) => cost.name.trim() && cost.price)
+          .map((cost, index) => ({
+            ...(cost.id ? { id: cost.id } : {}),
+            name: cost.name,
+            description: cost.description || null,
+            price: parseFloat(cost.price) || 0,
+            isOptional: cost.isOptional,
+            sortOrder: index,
+          })),
+        // Format vehicle packages
+        vehiclePackages: formData.vehiclePackages.map((vp) => ({
+          vehicleId: vp.vehicleId,
+          customPrice: vp.customPrice ? parseFloat(vp.customPrice) : null,
+        })),
+      };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       });
 
       if (res.ok) {
@@ -413,18 +511,116 @@ function PackageModal({
     }));
   };
 
+  // Vehicle package handlers
   const handleVehicleToggle = (vehicleId: string) => {
+    setFormData((prev) => {
+      const exists = prev.vehiclePackages.some((vp) => vp.vehicleId === vehicleId);
+      if (exists) {
+        return {
+          ...prev,
+          vehiclePackages: prev.vehiclePackages.filter((vp) => vp.vehicleId !== vehicleId),
+        };
+      } else {
+        return {
+          ...prev,
+          vehiclePackages: [...prev.vehiclePackages, { vehicleId, customPrice: "" }],
+        };
+      }
+    });
+  };
+
+  const handleVehicleCustomPrice = (vehicleId: string, price: string) => {
     setFormData((prev) => ({
       ...prev,
-      vehicleIds: prev.vehicleIds.includes(vehicleId)
-        ? prev.vehicleIds.filter((id) => id !== vehicleId)
-        : [...prev.vehicleIds, vehicleId],
+      vehiclePackages: prev.vehiclePackages.map((vp) =>
+        vp.vehicleId === vehicleId ? { ...vp, customPrice: price } : vp
+      ),
     }));
+  };
+
+  // Custom cost handlers
+  const addCustomCost = () => {
+    setFormData((prev) => ({
+      ...prev,
+      customCosts: [...prev.customCosts, { name: "", description: "", price: "", isOptional: false }],
+    }));
+  };
+
+  const removeCustomCost = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      customCosts: prev.customCosts.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateCustomCost = (index: number, field: string, value: string | boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      customCosts: prev.customCosts.map((cost, i) =>
+        i === index ? { ...cost, [field]: value } : cost
+      ),
+    }));
+  };
+
+  // Image upload handler
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Check if adding more would exceed max
+    if (formData.images.length + files.length > 4) {
+      setError("Maximum 4 images allowed");
+      return;
+    }
+
+    setImageUploading(true);
+    setError("");
+
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formDataUpload,
+        });
+
+        if (!res.ok) throw new Error("Upload failed");
+        const data = await res.json();
+        return data.url;
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...uploadedUrls].slice(0, 4),
+      }));
+    } catch (err) {
+      console.error("Error uploading images:", err);
+      setError("Failed to upload images");
+    }
+
+    setImageUploading(false);
+    e.target.value = "";
+  };
+
+  const removeImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
+
+  // Extract YouTube video ID for thumbnail
+  const getYouTubeVideoId = (url: string) => {
+    const match = url.match(/(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/);
+    return match ? match[1] : null;
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-xl flex flex-col">
+      <div className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-xl flex flex-col">
         <div className="px-6 py-4 border-b border-slate-200">
           <h2 className="text-xl font-bold text-slate-900">
             {pkg ? "Edit Package" : "Create Package"}
@@ -475,6 +671,90 @@ function PackageModal({
                 rows={2}
                 placeholder="Describe the package..."
               />
+            </div>
+
+            {/* Package Images */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Package Images (max 4)
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {formData.images.map((url, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={url}
+                      alt={`Package ${index + 1}`}
+                      className="w-24 h-24 object-cover rounded-lg border border-slate-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                {formData.images.length < 4 && (
+                  <label className="w-24 h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
+                    {imageUploading ? (
+                      <svg className="w-6 h-6 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : (
+                      <>
+                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="text-xs text-slate-500 mt-1">Add Image</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={imageUploading}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* YouTube Video URL */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">YouTube Video URL</label>
+              <input
+                type="url"
+                value={formData.videoUrl}
+                onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+              {formData.videoUrl && getYouTubeVideoId(formData.videoUrl) && (
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="relative w-32 h-20 rounded-lg overflow-hidden bg-slate-100">
+                    <img
+                      src={`https://img.youtube.com/vi/${getYouTubeVideoId(formData.videoUrl)}/mqdefault.jpg`}
+                      alt="Video thumbnail"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <span className="text-xs text-green-600">Valid YouTube URL</span>
+                </div>
+              )}
+              {formData.videoUrl && !getYouTubeVideoId(formData.videoUrl) && (
+                <p className="text-xs text-amber-600 mt-1">Please enter a valid YouTube URL</p>
+              )}
             </div>
 
             <div className="grid grid-cols-4 gap-4">
@@ -570,47 +850,170 @@ function PackageModal({
                 <input
                   type="checkbox"
                   checked={formData.isGlobal}
-                  onChange={(e) => setFormData({ ...formData, isGlobal: e.target.checked, vehicleIds: e.target.checked ? [] : formData.vehicleIds })}
+                  onChange={(e) => setFormData({ ...formData, isGlobal: e.target.checked, vehiclePackages: e.target.checked ? [] : formData.vehiclePackages })}
                   className="rounded border-slate-300"
                 />
                 Available for all vehicles
               </label>
             </div>
 
-            {/* Vehicle Selection - Only show when not global */}
+            {/* Vehicle Selection with Custom Pricing - Only show when not global */}
             {!formData.isGlobal && vehicles.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Select Vehicles ({formData.vehicleIds.length} selected)
+                  Select Vehicles & Set Package Pricing ({formData.vehiclePackages.length} selected)
                 </label>
-                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    {vehicles.map((vehicle) => (
-                      <button
-                        key={vehicle.id}
-                        type="button"
-                        onClick={() => handleVehicleToggle(vehicle.id)}
-                        className={`text-left rounded-lg p-2 text-sm transition ${
-                          formData.vehicleIds.includes(vehicle.id)
-                            ? "bg-blue-600 text-white"
-                            : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-                        }`}
-                      >
-                        <p className="font-medium">{vehicle.name}</p>
-                        <p className={`text-xs ${formData.vehicleIds.includes(vehicle.id) ? "text-blue-200" : "text-slate-500"}`}>
-                          {vehicle.brand} {vehicle.model}
-                        </p>
-                      </button>
-                    ))}
+                <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-2">
+                  <div className="space-y-2">
+                    {vehicles.map((vehicle) => {
+                      const isSelected = formData.vehiclePackages.some((vp) => vp.vehicleId === vehicle.id);
+                      const vehiclePkg = formData.vehiclePackages.find((vp) => vp.vehicleId === vehicle.id);
+
+                      return (
+                        <div
+                          key={vehicle.id}
+                          className={`rounded-lg p-3 transition border ${
+                            isSelected
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <button
+                              type="button"
+                              onClick={() => handleVehicleToggle(vehicle.id)}
+                              className="flex items-center gap-3 text-left flex-1"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="rounded border-slate-300"
+                              />
+                              <div>
+                                <p className="font-medium text-slate-900">{vehicle.name}</p>
+                                <p className="text-xs text-slate-500">
+                                  {vehicle.brand} {vehicle.model} - Default: {formatCurrency(vehicle.pricePerDay)}/day
+                                </p>
+                              </div>
+                            </button>
+                            {isSelected && (
+                              <div className="flex items-center gap-2 ml-4">
+                                <label className="text-xs text-slate-600 whitespace-nowrap">Package Price:</label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">{currency.symbol}</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Default"
+                                    value={vehiclePkg?.customPrice || ""}
+                                    onChange={(e) => handleVehicleCustomPrice(vehicle.id, e.target.value)}
+                                    className="w-28 rounded border border-slate-300 pl-6 pr-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                {formData.vehicleIds.length === 0 && (
+                {formData.vehiclePackages.length === 0 && (
                   <p className="text-xs text-amber-600 mt-1">
                     Please select at least one vehicle for this package
                   </p>
                 )}
               </div>
             )}
+
+            {/* Custom Costs Section */}
+            <div className="border-t border-slate-200 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-slate-700">
+                  Custom Costs ({formData.customCosts.length})
+                </label>
+                <button
+                  type="button"
+                  onClick={addCustomCost}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Cost
+                </button>
+              </div>
+
+              {formData.customCosts.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-4 border border-dashed border-slate-300 rounded-lg">
+                  No custom costs. Click &quot;Add Cost&quot; to add items like Driver Fee, Decoration, etc.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {formData.customCosts.map((cost, index) => (
+                    <div key={index} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 grid grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs text-slate-500 mb-1">Name *</label>
+                            <input
+                              type="text"
+                              placeholder="e.g., Driver Fee"
+                              value={cost.name}
+                              onChange={(e) => updateCustomCost(index, "name", e.target.value)}
+                              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-slate-500 mb-1">Price ({currency.symbol}) *</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={cost.price}
+                              onChange={(e) => updateCustomCost(index, "price", e.target.value)}
+                              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-slate-500 mb-1">Description</label>
+                            <input
+                              type="text"
+                              placeholder="Optional"
+                              value={cost.description}
+                              onChange={(e) => updateCustomCost(index, "description", e.target.value)}
+                              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2 pt-5">
+                          <label className="flex items-center gap-1.5 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={cost.isOptional}
+                              onChange={(e) => updateCustomCost(index, "isOptional", e.target.checked)}
+                              className="rounded border-slate-300"
+                            />
+                            Optional
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => removeCustomCost(index)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            title="Remove cost"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {policies.length > 0 && (
               <div>

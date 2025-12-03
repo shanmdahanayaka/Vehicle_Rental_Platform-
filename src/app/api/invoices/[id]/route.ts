@@ -102,6 +102,14 @@ export async function GET(
       damageCharge: invoice.damageCharge ? Number(invoice.damageCharge) : null,
       lateReturnCharge: invoice.lateReturnCharge ? Number(invoice.lateReturnCharge) : null,
       otherCharges: invoice.otherCharges ? Number(invoice.otherCharges) : null,
+      // Package invoice fields
+      isPackageInvoice: invoice.isPackageInvoice,
+      packageName: invoice.packageName,
+      packageType: invoice.packageType,
+      packageBasePrice: invoice.packageBasePrice ? Number(invoice.packageBasePrice) : null,
+      vehiclePackagePrice: invoice.vehiclePackagePrice ? Number(invoice.vehiclePackagePrice) : null,
+      customCostsDetails: invoice.customCostsDetails,
+      useFlatVehicleRate: invoice.useFlatVehicleRate,
       booking: {
         ...invoice.booking,
         totalPrice: Number(invoice.booking.totalPrice),

@@ -48,13 +48,18 @@ export async function GET(request: Request, { params }: RouteParams) {
                 name: true,
                 brand: true,
                 model: true,
+                pricePerDay: true,
               },
             },
           },
         },
+        customCosts: {
+          orderBy: { sortOrder: "asc" },
+        },
         _count: {
           select: {
             bookings: true,
+            customCosts: true,
           },
         },
       },
@@ -64,7 +69,28 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Package not found" }, { status: 404 });
     }
 
-    return NextResponse.json(pkg);
+    // Format decimal values
+    const formattedPkg = {
+      ...pkg,
+      basePrice: pkg.basePrice ? Number(pkg.basePrice) : null,
+      pricePerDay: pkg.pricePerDay ? Number(pkg.pricePerDay) : null,
+      pricePerHour: pkg.pricePerHour ? Number(pkg.pricePerHour) : null,
+      discount: pkg.discount ? Number(pkg.discount) : null,
+      customCosts: pkg.customCosts.map((cost) => ({
+        ...cost,
+        price: Number(cost.price),
+      })),
+      vehiclePackages: pkg.vehiclePackages.map((vp) => ({
+        ...vp,
+        customPrice: vp.customPrice ? Number(vp.customPrice) : null,
+        vehicle: {
+          ...vp.vehicle,
+          pricePerDay: Number(vp.vehicle.pricePerDay),
+        },
+      })),
+    };
+
+    return NextResponse.json(formattedPkg);
   } catch (error) {
     console.error("Error fetching package:", error);
     return NextResponse.json(
@@ -104,8 +130,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       isGlobal,
       sortOrder,
       icon,
+      images,
+      videoUrl,
       policyIds,
       vehicleIds,
+      customCosts,
+      vehiclePackages: vehiclePackagesData,
     } = body;
 
     // Build update data
@@ -113,16 +143,18 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (type !== undefined) updateData.type = type;
-    if (basePrice !== undefined) updateData.basePrice = basePrice ? parseFloat(basePrice) : null;
-    if (pricePerDay !== undefined) updateData.pricePerDay = pricePerDay ? parseFloat(pricePerDay) : null;
-    if (pricePerHour !== undefined) updateData.pricePerHour = pricePerHour ? parseFloat(pricePerHour) : null;
-    if (discount !== undefined) updateData.discount = discount ? parseFloat(discount) : null;
-    if (minDuration !== undefined) updateData.minDuration = minDuration ? parseInt(minDuration) : null;
-    if (maxDuration !== undefined) updateData.maxDuration = maxDuration ? parseInt(maxDuration) : null;
+    if (basePrice !== undefined) updateData.basePrice = basePrice ? parseFloat(String(basePrice)) : null;
+    if (pricePerDay !== undefined) updateData.pricePerDay = pricePerDay ? parseFloat(String(pricePerDay)) : null;
+    if (pricePerHour !== undefined) updateData.pricePerHour = pricePerHour ? parseFloat(String(pricePerHour)) : null;
+    if (discount !== undefined) updateData.discount = discount ? parseFloat(String(discount)) : null;
+    if (minDuration !== undefined) updateData.minDuration = minDuration ? parseInt(String(minDuration)) : null;
+    if (maxDuration !== undefined) updateData.maxDuration = maxDuration ? parseInt(String(maxDuration)) : null;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (isGlobal !== undefined) updateData.isGlobal = isGlobal;
-    if (sortOrder !== undefined) updateData.sortOrder = sortOrder ? parseInt(sortOrder) : 0;
+    if (sortOrder !== undefined) updateData.sortOrder = sortOrder ? parseInt(String(sortOrder)) : 0;
     if (icon !== undefined) updateData.icon = icon;
+    if (images !== undefined) updateData.images = images ? JSON.stringify(images) : null;
+    if (videoUrl !== undefined) updateData.videoUrl = videoUrl || null;
 
     // Update policies if provided
     if (policyIds !== undefined) {
@@ -142,14 +174,31 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       }
     }
 
-    // Update vehicle assignments if provided
-    if (vehicleIds !== undefined) {
+    // Update vehicle packages if provided (new format with customPrice support)
+    if (vehiclePackagesData !== undefined) {
       // Delete existing vehicle assignments
       await prisma.vehiclePackage.deleteMany({
         where: { packageId: id },
       });
 
-      // Create new vehicle assignments (only if not global)
+      // Create new vehicle assignments with custom prices
+      const finalIsGlobal = isGlobal !== undefined ? isGlobal : (await prisma.package.findUnique({ where: { id }, select: { isGlobal: true } }))?.isGlobal;
+
+      if (!finalIsGlobal && vehiclePackagesData.length > 0) {
+        await prisma.vehiclePackage.createMany({
+          data: vehiclePackagesData.map((vp: { vehicleId: string; customPrice?: number | string }) => ({
+            packageId: id,
+            vehicleId: vp.vehicleId,
+            customPrice: vp.customPrice ? parseFloat(String(vp.customPrice)) : null,
+          })),
+        });
+      }
+    } else if (vehicleIds !== undefined) {
+      // Old format: array of vehicle IDs (backwards compatible)
+      await prisma.vehiclePackage.deleteMany({
+        where: { packageId: id },
+      });
+
       const finalIsGlobal = isGlobal !== undefined ? isGlobal : (await prisma.package.findUnique({ where: { id }, select: { isGlobal: true } }))?.isGlobal;
 
       if (!finalIsGlobal && vehicleIds.length > 0) {
@@ -157,6 +206,80 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           data: vehicleIds.map((vehicleId: string) => ({
             packageId: id,
             vehicleId,
+          })),
+        });
+      }
+    }
+
+    // Update custom costs if provided
+    if (customCosts !== undefined) {
+      // Get existing custom costs to determine which to update/delete/create
+      const existingCosts = await prisma.packageCustomCost.findMany({
+        where: { packageId: id },
+      });
+      const existingIds = existingCosts.map((c) => c.id);
+
+      // Separate into update, create, and delete operations
+      const costsToUpdate: { id: string; name: string; description?: string; price: number; isOptional?: boolean; sortOrder?: number }[] = [];
+      const costsToCreate: { name: string; description?: string; price: number; isOptional?: boolean; sortOrder?: number }[] = [];
+      const updatedIds: string[] = [];
+
+      customCosts.forEach((cost: { id?: string; name: string; description?: string; price: number | string; isOptional?: boolean; sortOrder?: number }, index: number) => {
+        if (cost.id && existingIds.includes(cost.id)) {
+          // Update existing
+          costsToUpdate.push({
+            id: cost.id,
+            name: cost.name,
+            description: cost.description,
+            price: parseFloat(String(cost.price)),
+            isOptional: cost.isOptional,
+            sortOrder: cost.sortOrder ?? index,
+          });
+          updatedIds.push(cost.id);
+        } else if (!cost.id) {
+          // Create new
+          costsToCreate.push({
+            name: cost.name,
+            description: cost.description,
+            price: parseFloat(String(cost.price)),
+            isOptional: cost.isOptional ?? false,
+            sortOrder: cost.sortOrder ?? index,
+          });
+        }
+      });
+
+      // Delete costs that are no longer in the list
+      const idsToDelete = existingIds.filter((id) => !updatedIds.includes(id));
+      if (idsToDelete.length > 0) {
+        await prisma.packageCustomCost.deleteMany({
+          where: { id: { in: idsToDelete } },
+        });
+      }
+
+      // Update existing costs
+      for (const cost of costsToUpdate) {
+        await prisma.packageCustomCost.update({
+          where: { id: cost.id },
+          data: {
+            name: cost.name,
+            description: cost.description || null,
+            price: cost.price,
+            isOptional: cost.isOptional ?? false,
+            sortOrder: cost.sortOrder ?? 0,
+          },
+        });
+      }
+
+      // Create new costs
+      if (costsToCreate.length > 0) {
+        await prisma.packageCustomCost.createMany({
+          data: costsToCreate.map((cost) => ({
+            packageId: id,
+            name: cost.name,
+            description: cost.description || null,
+            price: cost.price,
+            isOptional: cost.isOptional ?? false,
+            sortOrder: cost.sortOrder ?? 0,
           })),
         });
       }
@@ -179,14 +302,39 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                 name: true,
                 brand: true,
                 model: true,
+                pricePerDay: true,
               },
             },
           },
         },
+        customCosts: {
+          orderBy: { sortOrder: "asc" },
+        },
       },
     });
 
-    return NextResponse.json(pkg);
+    // Format decimal values
+    const formattedPkg = {
+      ...pkg,
+      basePrice: pkg.basePrice ? Number(pkg.basePrice) : null,
+      pricePerDay: pkg.pricePerDay ? Number(pkg.pricePerDay) : null,
+      pricePerHour: pkg.pricePerHour ? Number(pkg.pricePerHour) : null,
+      discount: pkg.discount ? Number(pkg.discount) : null,
+      customCosts: pkg.customCosts.map((cost) => ({
+        ...cost,
+        price: Number(cost.price),
+      })),
+      vehiclePackages: pkg.vehiclePackages.map((vp) => ({
+        ...vp,
+        customPrice: vp.customPrice ? Number(vp.customPrice) : null,
+        vehicle: {
+          ...vp.vehicle,
+          pricePerDay: Number(vp.vehicle.pricePerDay),
+        },
+      })),
+    };
+
+    return NextResponse.json(formattedPkg);
   } catch (error) {
     console.error("Error updating package:", error);
     return NextResponse.json(

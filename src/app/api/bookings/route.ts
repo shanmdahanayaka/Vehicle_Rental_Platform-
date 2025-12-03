@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
 import { sendNotification, notifyAdmins, NotificationTemplates } from "@/lib/notifications";
+import { pusherServer } from "@/lib/pusher-server";
+import { CHANNELS, EVENTS } from "@/lib/pusher-client";
 
 // Roles that can view all bookings
 const ADMIN_ROLES: UserRole[] = ["ADMIN", "SUPER_ADMIN", "MANAGER"];
@@ -243,6 +245,16 @@ export async function POST(request: Request) {
       message: `A new booking for ${vehicleName} has been created by ${session.user.name || session.user.email}.`,
       data: { bookingId: booking.id, userId: session.user.id },
     });
+
+    // Real-time sync for admin dashboard
+    await pusherServer.trigger(
+      CHANNELS.adminBookings,
+      EVENTS.NEW_BOOKING,
+      {
+        bookingId: booking.id,
+        message: "New booking created",
+      }
+    );
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {

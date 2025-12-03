@@ -7,14 +7,16 @@ interface SearchParams {
 }
 
 const packageTypes = [
-  { value: "all", label: "All Packages", icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
-  { value: "DAILY", label: "Daily", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
-  { value: "WEEKLY", label: "Weekly", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
-  { value: "MONTHLY", label: "Monthly", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" },
-  { value: "AIRPORT_PICKUP", label: "Airport Pickup", icon: "M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" },
-  { value: "AIRPORT_DROP", label: "Airport Drop", icon: "M19 14l-7 7m0 0l-7-7m7 7V3" },
-  { value: "AIRPORT_ROUND", label: "Airport Round", icon: "M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" },
-  { value: "HOURLY", label: "Hourly", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+  { value: "all", label: "All", icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
+  { value: "WEDDING", label: "Wedding", icon: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" },
+  { value: "AIRPORT", label: "Airport", icon: "M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" },
+  { value: "TOURISM", label: "Tourism", icon: "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+  { value: "CORPORATE", label: "Corporate", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" },
+  { value: "SELF_DRIVE", label: "Self Drive", icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" },
+  { value: "WITH_DRIVER", label: "With Driver", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
+  { value: "HONEYMOON", label: "Honeymoon", icon: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" },
+  { value: "ADVENTURE", label: "Adventure", icon: "M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" },
+  { value: "CUSTOM", label: "Custom", icon: "M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" },
 ];
 
 async function getPackages(type?: string) {
@@ -63,6 +65,8 @@ async function getPackages(type?: string) {
     minDuration: pkg.minDuration,
     maxDuration: pkg.maxDuration,
     icon: pkg.icon,
+    images: pkg.images,
+    videoUrl: pkg.videoUrl,
     isGlobal: pkg.isGlobal,
     // If global, count all available vehicles; otherwise count linked vehicles
     vehicleCount: pkg.isGlobal
@@ -135,117 +139,128 @@ export default async function PackagesPage({
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Package Type Quick Filters */}
-        <div className="mb-8 overflow-x-auto pb-2">
-          <div className="flex gap-3 min-w-max">
-            {packageTypes.map((type) => (
-              <Link
-                key={type.value}
-                href={type.value === "all" ? "/packages" : `/packages?type=${type.value}`}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all duration-300 ${
-                  (type.value === "all" && !params.type) || params.type === type.value
-                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/25"
-                    : "bg-white text-slate-700 hover:bg-slate-100 shadow-sm"
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={type.icon} />
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Filters */}
+          <div className="lg:w-64 flex-shrink-0">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sticky top-4">
+              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
-                <span>{type.label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
+                Package Types
+              </h3>
+              <div className="space-y-1">
+                {packageTypes.map((type) => (
+                  <Link
+                    key={type.value}
+                    href={type.value === "all" ? "/packages" : `/packages?type=${type.value}`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                      (type.value === "all" && !params.type) || params.type === type.value
+                        ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={type.icon} />
+                    </svg>
+                    <span className="text-sm">{type.label}</span>
+                  </Link>
+                ))}
+              </div>
 
-        {/* Results Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">
-              {hasFilters ? `${params.type?.replace(/_/g, " ")} Packages` : "All Packages"}
-            </h2>
-            <p className="text-slate-600">
-              {packages.length} package{packages.length !== 1 ? "s" : ""} available
-            </p>
-          </div>
-
-          {/* View Toggle */}
-          <Link
-            href="/vehicles"
-            className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 font-medium transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-            </svg>
-            Browse by Vehicle
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        </div>
-
-        {/* Active Filters */}
-        {hasFilters && (
-          <div className="flex flex-wrap items-center gap-2 mb-6">
-            <span className="text-sm text-slate-600">Active filters:</span>
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-sm">
-              Type: {params.type?.replace(/_/g, " ")}
-              <Link href="/packages" className="hover:text-purple-900">
-                ×
-              </Link>
-            </span>
-            <Link
-              href="/packages"
-              className="text-sm text-red-600 hover:text-red-700 font-medium ml-2"
-            >
-              Clear all
-            </Link>
-          </div>
-        )}
-
-        {/* Package Grid */}
-        {packages.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {packages.map((pkg) => (
-              <PackageCard
-                key={pkg.id}
-                id={pkg.id}
-                name={pkg.name}
-                description={pkg.description}
-                type={pkg.type}
-                basePrice={pkg.basePrice}
-                pricePerDay={pkg.pricePerDay}
-                pricePerHour={pkg.pricePerHour}
-                discount={pkg.discount}
-                minDuration={pkg.minDuration}
-                maxDuration={pkg.maxDuration}
-                icon={pkg.icon}
-                vehicleCount={pkg.vehicleCount}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
-            <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-6">
-              <svg className="w-12 h-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
+              {/* Browse Vehicles Link */}
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <Link
+                  href="/vehicles"
+                  className="flex items-center gap-2 text-sm text-slate-600 hover:text-purple-600 font-medium transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                  </svg>
+                  Browse by Vehicle
+                  <svg className="w-4 h-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-2">No packages found</h3>
-            <p className="text-slate-600 mb-6 max-w-md mx-auto">
-              We couldn&apos;t find any packages matching your criteria. Try adjusting your filters.
-            </p>
-            <Link
-              href="/packages"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-            >
-              View All Packages
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </Link>
           </div>
-        )}
+
+          {/* Main Content Area */}
+          <div className="flex-1 min-w-0">
+            {/* Results Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  {hasFilters ? `${params.type?.replace(/_/g, " ")} Packages` : "All Packages"}
+                </h2>
+                <p className="text-slate-600">
+                  {packages.length} package{packages.length !== 1 ? "s" : ""} available
+                </p>
+              </div>
+
+              {/* Active Filter Badge */}
+              {hasFilters && (
+                <Link
+                  href="/packages"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-100 text-purple-700 text-sm font-medium hover:bg-purple-200 transition-colors"
+                >
+                  <span>Clear filter</span>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Link>
+              )}
+            </div>
+
+            {/* Package Grid */}
+            {packages.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {packages.map((pkg) => (
+                  <PackageCard
+                    key={pkg.id}
+                    id={pkg.id}
+                    name={pkg.name}
+                    description={pkg.description}
+                    type={pkg.type}
+                    basePrice={pkg.basePrice}
+                    pricePerDay={pkg.pricePerDay}
+                    pricePerHour={pkg.pricePerHour}
+                    discount={pkg.discount}
+                    minDuration={pkg.minDuration}
+                    maxDuration={pkg.maxDuration}
+                    icon={pkg.icon}
+                    images={pkg.images}
+                    videoUrl={pkg.videoUrl}
+                    vehicleCount={pkg.vehicleCount}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
+                <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-12 h-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">No packages found</h3>
+                <p className="text-slate-600 mb-6 max-w-md mx-auto">
+                  We couldn&apos;t find any packages matching your criteria. Try adjusting your filters.
+                </p>
+                <Link
+                  href="/packages"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+                >
+                  View All Packages
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Popular Packages Info Section */}
         <section className="mt-16 grid md:grid-cols-3 gap-8">

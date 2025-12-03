@@ -35,6 +35,17 @@ export async function GET(request: Request) {
             },
           },
         },
+        customCosts: {
+          where: { isActive: true },
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+            isOptional: true,
+          },
+        },
       },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
@@ -67,6 +78,17 @@ export async function GET(request: Request) {
                   },
                 },
               },
+              customCosts: {
+                where: { isActive: true },
+                orderBy: { sortOrder: "asc" },
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  price: true,
+                  isOptional: true,
+                },
+              },
             },
           },
         },
@@ -96,6 +118,13 @@ export async function GET(request: Request) {
       maxDuration: pkg.maxDuration,
       icon: pkg.icon,
       policies: pkg.policies.map((pp) => pp.policy),
+      customCosts: pkg.customCosts.map((cost) => ({
+        id: cost.id,
+        name: cost.name,
+        description: cost.description,
+        price: Number(cost.price),
+        isOptional: cost.isOptional,
+      })),
     }));
 
     return NextResponse.json(response);

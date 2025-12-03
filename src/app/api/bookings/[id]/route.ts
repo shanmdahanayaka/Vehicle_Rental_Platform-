@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { sendNotification, notifyAdmins } from "@/lib/notifications";
+import { pusherServer } from "@/lib/pusher-server";
+import { CHANNELS, EVENTS } from "@/lib/pusher-client";
 
 // GET /api/bookings/[id] - Get a specific booking
 export async function GET(
@@ -144,6 +146,17 @@ export async function PATCH(
           data: { bookingId: booking.id, userId: booking.userId },
         });
       }
+
+      // Real-time sync for admin dashboard
+      await pusherServer.trigger(
+        CHANNELS.adminBookings,
+        EVENTS.BOOKING_UPDATED,
+        {
+          bookingId: booking.id,
+          status: "CANCELLED",
+          message: "Booking cancelled",
+        }
+      );
 
       return NextResponse.json({
         success: true,

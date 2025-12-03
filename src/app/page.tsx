@@ -3,7 +3,7 @@ import VehicleCard from "@/components/VehicleCard";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
-import { brand, stats as siteStats, locations, testimonials as siteTestimonials, features as siteFeatures } from "@/config/site";
+import { brand, stats as siteStats, locations, testimonials as siteTestimonials, features as siteFeatures, formatCurrency } from "@/config/site";
 
 async function getFeaturedVehicles() {
   try {
@@ -29,6 +29,43 @@ async function getFeaturedVehicles() {
   } catch {
     return [];
   }
+}
+
+async function getActivePackages() {
+  try {
+    const packages = await prisma.package.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      take: 6,
+      include: {
+        customCosts: {
+          where: { isActive: true },
+          select: { price: true, isOptional: true },
+        },
+        _count: {
+          select: { bookings: true },
+        },
+      },
+    });
+    return packages.map((pkg) => ({
+      ...pkg,
+      basePrice: pkg.basePrice ? Number(pkg.basePrice) : null,
+      pricePerDay: pkg.pricePerDay ? Number(pkg.pricePerDay) : null,
+      images: pkg.images ? JSON.parse(pkg.images) : [],
+      requiredCostsTotal: pkg.customCosts
+        .filter((c) => !c.isOptional)
+        .reduce((sum, c) => sum + Number(c.price), 0),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// Helper to extract YouTube video ID
+function getYouTubeVideoId(url: string | null) {
+  if (!url) return null;
+  const match = url.match(/(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/);
+  return match ? match[1] : null;
 }
 
 async function getStats() {
@@ -158,8 +195,11 @@ const features = siteFeatures.map((f) => ({
 }));
 
 export default async function Home() {
-  const featuredVehicles = await getFeaturedVehicles();
-  const stats = await getStats();
+  const [featuredVehicles, stats, packages] = await Promise.all([
+    getFeaturedVehicles(),
+    getStats(),
+    getActivePackages(),
+  ]);
 
   return (
     <div className="overflow-x-hidden">
@@ -242,6 +282,190 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Packages Section - Main Feature */}
+      {packages.length > 0 && (
+        <section className="py-20 bg-gradient-to-b from-white to-purple-50 relative overflow-hidden">
+          {/* Background decorations */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-200 rounded-full opacity-30 blur-3xl" />
+            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-200 rounded-full opacity-30 blur-3xl" />
+          </div>
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="text-center mb-16">
+              <span className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold mb-4">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                Special Packages
+              </span>
+              <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mt-2 mb-4">
+                Exclusive <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">Travel Packages</span>
+              </h2>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+                Discover our specially curated packages for weddings, tourism, airport transfers, and more.
+                Complete solutions with vehicles, drivers, and premium services.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {packages.map((pkg, index) => {
+                const videoId = getYouTubeVideoId(pkg.videoUrl);
+                const hasMedia = pkg.images.length > 0 || videoId;
+                const thumbnailImage = videoId
+                  ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+                  : pkg.images[0] || null;
+
+                return (
+                  <Link
+                    key={pkg.id}
+                    href={`/packages/${pkg.id}`}
+                    className={`group relative bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 ${
+                      index === 0 ? "md:col-span-2 lg:col-span-1" : ""
+                    }`}
+                  >
+                    {/* Media Section */}
+                    <div className="relative h-56 bg-gradient-to-br from-purple-100 to-blue-100 overflow-hidden">
+                      {thumbnailImage ? (
+                        <>
+                          <Image
+                            src={thumbnailImage}
+                            alt={pkg.name}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-700"
+                          />
+                          {/* Video play button overlay */}
+                          {videoId && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+                              <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform">
+                                <svg className="w-8 h-8 text-purple-600 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z" />
+                                </svg>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Package type badge */}
+                      <div className="absolute top-4 left-4">
+                        <span className="bg-white/95 backdrop-blur-sm text-slate-800 px-3 py-1.5 rounded-full text-xs font-semibold shadow-md">
+                          {pkg.type.replace(/_/g, " ")}
+                        </span>
+                      </div>
+
+                      {/* Discount badge */}
+                      {pkg.discount && Number(pkg.discount) > 0 && (
+                        <div className="absolute top-4 right-4">
+                          <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-md">
+                            {Number(pkg.discount)}% OFF
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Image count indicator */}
+                      {pkg.images.length > 1 && (
+                        <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-lg text-xs flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {pkg.images.length}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content Section */}
+                    <div className="p-6">
+                      <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-purple-600 transition-colors">
+                        {pkg.name}
+                      </h3>
+
+                      {pkg.description && (
+                        <p className="text-slate-600 text-sm mb-4 line-clamp-2">
+                          {pkg.description}
+                        </p>
+                      )}
+
+                      {/* Pricing */}
+                      <div className="flex items-end justify-between mb-4">
+                        <div>
+                          {pkg.basePrice && (
+                            <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">
+                              {formatCurrency(pkg.basePrice)}
+                              <span className="text-sm font-normal text-slate-500 ml-1">base</span>
+                            </div>
+                          )}
+                          {pkg.pricePerDay && !pkg.basePrice && (
+                            <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">
+                              {formatCurrency(pkg.pricePerDay)}
+                              <span className="text-sm font-normal text-slate-500 ml-1">/day</span>
+                            </div>
+                          )}
+                          {pkg.requiredCostsTotal > 0 && (
+                            <p className="text-xs text-slate-500">
+                              + {formatCurrency(pkg.requiredCostsTotal)} services
+                            </p>
+                          )}
+                        </div>
+
+                        {pkg._count.bookings > 0 && (
+                          <div className="text-xs text-slate-500 flex items-center gap-1">
+                            <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            {pkg._count.bookings} booked
+                          </div>
+                        )}
+                      </div>
+
+                      {/* CTA Button */}
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <span className="text-sm font-semibold text-purple-600 group-hover:text-purple-700 flex items-center gap-1">
+                          View Package
+                          <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                          </svg>
+                        </span>
+
+                        {/* Duration info */}
+                        {(pkg.minDuration || pkg.maxDuration) && (
+                          <span className="text-xs text-slate-400">
+                            {pkg.minDuration && `Min: ${pkg.minDuration}d`}
+                            {pkg.minDuration && pkg.maxDuration && " • "}
+                            {pkg.maxDuration && `Max: ${pkg.maxDuration}d`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* View All Button */}
+            <div className="text-center mt-12">
+              <Link
+                href="/packages"
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/30 hover:-translate-y-1"
+              >
+                <span>Explore All Packages</span>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Featured Vehicles Section */}
       <section className="py-20 bg-slate-50">

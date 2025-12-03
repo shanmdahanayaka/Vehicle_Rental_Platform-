@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { sendNotification, NotificationTemplates } from "@/lib/notifications";
 import { mileageConfig, invoiceConfig } from "@/config/site";
+import { pusherServer } from "@/lib/pusher-server";
+import { CHANNELS, EVENTS } from "@/lib/pusher-client";
 
 // POST /api/admin/bookings/[id]/workflow - Handle booking workflow transitions
 export async function POST(
@@ -29,6 +31,7 @@ export async function POST(
         packages: { include: { package: true } },
         documents: true,
         invoice: true,
+        primaryPackage: true,
       },
     });
 
@@ -151,8 +154,14 @@ export async function POST(
         ));
 
         // Recalculate base rental amount if dates were edited
-        const dailyRate = Number(booking.vehicle.pricePerDay);
-        const recalculatedBaseAmount = dailyRate * actualRentalDays;
+        // For package bookings, use the stored vehiclePackagePrice
+        const dailyRate = booking.isPackageBooking && booking.vehiclePackagePrice
+          ? Number(booking.vehiclePackagePrice)
+          : Number(booking.vehicle.pricePerDay);
+
+        // For package bookings with flat rate option, don't multiply by days
+        const useFlatVehicleRate = booking.isPackageBooking && data.useFlatVehicleRate === true;
+        const recalculatedBaseAmount = useFlatVehicleRate ? dailyRate : dailyRate * actualRentalDays;
 
         const returnOdometer = parseInt(data.returnOdometer);
         const collectionOdometer = booking.collectionOdometer || 0;
@@ -173,8 +182,11 @@ export async function POST(
         const otherCharges = data.otherCharges ? parseFloat(data.otherCharges) : 0;
 
         // Calculate package charges for actual rental days
+        // For package bookings, use stored packageBasePrice + customCostsTotal
         let packageCharges = 0;
-        if (booking.packages && booking.packages.length > 0) {
+        if (booking.isPackageBooking) {
+          packageCharges = (Number(booking.packageBasePrice) || 0) + (Number(booking.customCostsTotal) || 0);
+        } else if (booking.packages && booking.packages.length > 0) {
           for (const bp of booking.packages) {
             const pkg = bp.package;
             if (pkg.basePrice) {
@@ -220,6 +232,8 @@ export async function POST(
             discountReason: data.discountReason || null,
             finalAmount,
             balanceDue,
+            // Store flat rate preference for package bookings
+            useFlatVehicleRate: useFlatVehicleRate,
           },
           include: { vehicle: true, user: true, packages: { include: { package: true } } },
         });
@@ -286,15 +300,50 @@ export async function POST(
         const diffMs = new Date(actualEndDate).getTime() - new Date(actualStartDate).getTime();
         const rentalDays = Math.max(1, Math.ceil(diffMs / msPerDay));
 
-        // Calculate package charges
-        const packageCharges = booking.packages.reduce(
-          (sum, bp) => sum + Number(bp.price),
-          0
-        );
+        // Get custom costs for package bookings
+        let customCostsDetails = null;
+        let packageBasePrice = 0;
+        let vehiclePackagePrice = 0;
+        let customCostsTotal = 0;
+
+        if (booking.isPackageBooking) {
+          // Fetch custom costs for this booking
+          const bookingCustomCosts = await prisma.bookingPackageCustomCost.findMany({
+            where: { bookingId: id },
+            include: {
+              packageCustomCost: {
+                select: { id: true, name: true },
+              },
+            },
+          });
+
+          packageBasePrice = Number(booking.packageBasePrice) || 0;
+          vehiclePackagePrice = Number(booking.vehiclePackagePrice) || Number(booking.vehicle.pricePerDay);
+          customCostsTotal = Number(booking.customCostsTotal) || 0;
+
+          // Store custom costs as JSON for invoice display
+          customCostsDetails = JSON.stringify(
+            bookingCustomCosts.map((cc) => ({
+              id: cc.id,
+              name: cc.name,
+              price: Number(cc.price),
+              originalCostId: cc.packageCustomCostId,
+            }))
+          );
+        }
+
+        // Calculate package charges (for regular bookings with packages)
+        const packageCharges = booking.isPackageBooking
+          ? packageBasePrice + customCostsTotal
+          : booking.packages.reduce((sum, bp) => sum + Number(bp.price), 0);
 
         // Calculate amounts
-        const dailyRate = Number(booking.vehicle.pricePerDay);
-        const rentalAmount = dailyRate * rentalDays;
+        // For package bookings, use vehiclePackagePrice, otherwise use vehicle's daily rate
+        const dailyRate = booking.isPackageBooking
+          ? vehiclePackagePrice
+          : Number(booking.vehicle.pricePerDay);
+        // For package bookings with flat rate option, don't multiply by days
+        const rentalAmount = booking.useFlatVehicleRate ? dailyRate : dailyRate * rentalDays;
         const subtotal =
           rentalAmount +
           packageCharges +
@@ -349,6 +398,14 @@ export async function POST(
             termsAndConditions: invoiceConfig.defaultTerms,
             notes: data.notes || null,
             createdBy: session.user.id,
+            // Package booking invoice fields
+            isPackageInvoice: booking.isPackageBooking,
+            packageName: booking.isPackageBooking && booking.primaryPackage ? booking.primaryPackage.name : null,
+            packageType: booking.isPackageBooking && booking.primaryPackage ? booking.primaryPackage.type : null,
+            packageBasePrice: booking.isPackageBooking && packageBasePrice > 0 ? packageBasePrice : null,
+            vehiclePackagePrice: booking.isPackageBooking ? vehiclePackagePrice : null,
+            customCostsDetails: customCostsDetails,
+            useFlatVehicleRate: booking.useFlatVehicleRate,
           },
         });
 
@@ -529,6 +586,18 @@ export async function POST(
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
+
+    // Real-time sync for admin dashboard
+    await pusherServer.trigger(
+      CHANNELS.adminBookings,
+      EVENTS.BOOKING_UPDATED,
+      {
+        bookingId: id,
+        action,
+        status: updatedBooking?.status,
+        message: `Booking ${action} completed`,
+      }
+    );
 
     return NextResponse.json({
       success: true,

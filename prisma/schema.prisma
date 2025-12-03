@@ -152,12 +152,22 @@ model Booking {
   finalAmount       Decimal?       @db.Decimal(10, 2)  // Total after all calculations
   balanceDue        Decimal?       @db.Decimal(10, 2)  // finalAmount - advanceAmount
 
+  // === PACKAGE BOOKING FIELDS ===
+  isPackageBooking    Boolean        @default(false)    // TRUE = package-first booking
+  primaryPackageId    String?                            // Main package for package-first bookings
+  packageBasePrice    Decimal?       @db.Decimal(10, 2)  // Snapshot of package base price
+  vehiclePackagePrice Decimal?       @db.Decimal(10, 2)  // Vehicle price FOR THIS PACKAGE
+  customCostsTotal    Decimal?       @db.Decimal(10, 2)  // Sum of all custom costs
+  useFlatVehicleRate  Boolean        @default(false)    // Use flat rate (ignore days) for vehicle rental
+
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   vehicle  Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   payment  Payment?
   packages BookingPackage[]
   documents BookingDocument[]
   invoice   Invoice?
+  primaryPackage Package?       @relation("PrimaryPackageBooking", fields: [primaryPackageId], references: [id])
+  customCosts    BookingPackageCustomCost[]
 
   @@index([status])
   @@index([userId])
@@ -247,14 +257,18 @@ enum PaymentStatus {
 
 // Rental Package Types
 enum PackageType {
-  DAILY           // Standard daily rental
-  WEEKLY          // Weekly rental with discount
-  MONTHLY         // Monthly/Long-term rental
-  AIRPORT_PICKUP  // Airport pickup service
-  AIRPORT_DROP    // Airport drop service
-  AIRPORT_ROUND   // Airport round trip (pickup + drop)
-  HOURLY          // Hourly rental
-  CUSTOM          // Custom package
+  WEDDING         // Wedding packages (bridal car, decorations)
+  AIRPORT         // Airport transfer services
+  TOURISM         // Tourism & sightseeing packages
+  CORPORATE       // Corporate/business rentals
+  SELF_DRIVE      // Self-drive rental packages
+  WITH_DRIVER     // Chauffeur-driven packages
+  LONG_TERM       // Long-term rental (weekly/monthly)
+  EVENT           // Events, parties, functions
+  HONEYMOON       // Honeymoon travel packages
+  PILGRIMAGE      // Religious/pilgrimage tours
+  ADVENTURE       // Adventure & outdoor activities
+  CUSTOM          // Custom packages
 }
 
 // Package - Dynamic rental options
@@ -280,6 +294,10 @@ model Package {
   sortOrder    Int         @default(0)         // Display order
   icon         String?     // Icon name or URL
 
+  // Media
+  images       String?     @db.Text            // JSON array of image URLs (max 4)
+  videoUrl     String?                         // YouTube video URL
+
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -287,6 +305,8 @@ model Package {
   policies         PackagePolicy[]
   vehiclePackages  VehiclePackage[]
   bookings         BookingPackage[]
+  customCosts      PackageCustomCost[]
+  primaryBookings  Booking[]          @relation("PrimaryPackageBooking")
 }
 
 // Policy - Dynamic policies for packages and vehicles
@@ -370,6 +390,42 @@ model BookingPackage {
   package  Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
   @@unique([bookingId, packageId])
+}
+
+// ==================== PACKAGE CUSTOM COSTS ====================
+
+// Dynamic custom costs for packages (Driver Fee, Decoration, Photography, etc.)
+model PackageCustomCost {
+  id          String   @id @default(cuid())
+  packageId   String
+  name        String   // e.g., "Driver Fee", "Decoration", "Photography"
+  description String?  @db.Text
+  price       Decimal  @db.Decimal(10, 2)
+  isOptional  Boolean  @default(false)  // Can user opt out of this cost?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  package            Package                    @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  bookingCustomCosts BookingPackageCustomCost[]
+
+  @@index([packageId])
+}
+
+// Snapshot of custom costs selected for a booking
+model BookingPackageCustomCost {
+  id                  String   @id @default(cuid())
+  bookingId           String
+  packageCustomCostId String
+  name                String   // Snapshot of cost name at booking time
+  price               Decimal  @db.Decimal(10, 2)  // Snapshot of price at booking time
+  createdAt           DateTime @default(now())
+
+  booking           Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  packageCustomCost PackageCustomCost @relation(fields: [packageCustomCostId], references: [id])
+
+  @@index([bookingId])
 }
 
 // Permission Management Models
@@ -661,6 +717,15 @@ model Invoice {
   lateReturnCharge Decimal?     @db.Decimal(10, 2)
   otherCharges     Decimal?     @db.Decimal(10, 2)
   otherChargesDesc String?      @db.Text
+
+  // === PACKAGE BOOKING FIELDS ===
+  isPackageInvoice    Boolean      @default(false)     // TRUE if this is a package booking invoice
+  packageName         String?                          // Name of the package
+  packageType         String?                          // Type of package (WEDDING, AIRPORT, etc.)
+  packageBasePrice    Decimal?     @db.Decimal(10, 2)  // Package base price (for package bookings)
+  vehiclePackagePrice Decimal?     @db.Decimal(10, 2)  // Vehicle's package-specific price
+  customCostsDetails  String?      @db.Text            // JSON array of custom cost line items
+  useFlatVehicleRate  Boolean      @default(false)     // TRUE if flat rate (ignore days) was used
 
   // === TOTALS ===
   subtotal         Decimal      @db.Decimal(10, 2)

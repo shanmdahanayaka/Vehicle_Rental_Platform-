@@ -29,6 +29,14 @@ interface Invoice {
   lateReturnCharge: number | null;
   otherCharges: number | null;
   otherChargesDesc: string | null;
+  // Package Invoice Fields
+  isPackageInvoice: boolean;
+  packageName: string | null;
+  packageType: string | null;
+  packageBasePrice: number | null;
+  vehiclePackagePrice: number | null;
+  customCostsDetails: string | null;
+  useFlatVehicleRate: boolean;
   subtotal: number;
   discountAmount: number | null;
   discountReason: string | null;
@@ -165,6 +173,35 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  // Parse custom costs details from JSON string
+  const parseCustomCosts = (customCostsDetails: string | null): { name: string; price: number }[] => {
+    if (!customCostsDetails) return [];
+    try {
+      return JSON.parse(customCostsDetails);
+    } catch {
+      return [];
+    }
+  };
+
+  // Get package type display config
+  const getPackageTypeConfig = (type: string | null) => {
+    const configs: Record<string, { label: string; color: string; bgColor: string }> = {
+      WEDDING: { label: "Wedding", color: "text-pink-600", bgColor: "bg-pink-100" },
+      AIRPORT: { label: "Airport", color: "text-blue-600", bgColor: "bg-blue-100" },
+      TOURISM: { label: "Tourism", color: "text-green-600", bgColor: "bg-green-100" },
+      CORPORATE: { label: "Corporate", color: "text-slate-600", bgColor: "bg-slate-100" },
+      SELF_DRIVE: { label: "Self Drive", color: "text-amber-600", bgColor: "bg-amber-100" },
+      WITH_DRIVER: { label: "With Driver", color: "text-purple-600", bgColor: "bg-purple-100" },
+      LONG_TERM: { label: "Long Term", color: "text-indigo-600", bgColor: "bg-indigo-100" },
+      EVENT: { label: "Event", color: "text-rose-600", bgColor: "bg-rose-100" },
+      HONEYMOON: { label: "Honeymoon", color: "text-red-600", bgColor: "bg-red-100" },
+      PILGRIMAGE: { label: "Pilgrimage", color: "text-amber-700", bgColor: "bg-amber-100" },
+      ADVENTURE: { label: "Adventure", color: "text-emerald-600", bgColor: "bg-emerald-100" },
+      CUSTOM: { label: "Custom", color: "text-gray-600", bgColor: "bg-gray-100" },
+    };
+    return configs[type || ""] || { label: type || "Package", color: "text-gray-600", bgColor: "bg-gray-100" };
+  };
+
   if (sessionStatus === "loading" || loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -246,10 +283,15 @@ export default function InvoiceDetailPage() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="inline-block">
+                <div className="inline-flex items-center gap-2">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(invoice.status)}`}>
                     {invoice.status.replace("_", " ")}
                   </span>
+                  {invoice.isPackageInvoice && invoice.packageType && (
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPackageTypeConfig(invoice.packageType).bgColor} ${getPackageTypeConfig(invoice.packageType).color}`}>
+                      {getPackageTypeConfig(invoice.packageType).label} Package
+                    </span>
+                  )}
                 </div>
                 <div className="mt-4 text-sm text-slate-600">
                   <p><span className="font-medium">Invoice #:</span> {invoice.invoiceNumber}</p>
@@ -260,6 +302,17 @@ export default function InvoiceDetailPage() {
                 </div>
               </div>
             </div>
+            {/* Package Name Banner */}
+            {invoice.isPackageInvoice && invoice.packageName && (
+              <div className="mt-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <span className="font-semibold text-purple-900">{invoice.packageName}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Customer & Vehicle Info */}
@@ -316,17 +369,51 @@ export default function InvoiceDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {/* Base Rental */}
+                {/* Vehicle Rental - Different display for package vs regular bookings */}
                 <tr>
                   <td className="py-3">
-                    <span className="text-slate-900">Base Rental</span>
-                    <span className="text-slate-500 ml-2">({invoice.rentalDays} days × {formatCurrency(invoice.dailyRate)})</span>
+                    <span className="text-slate-900">
+                      {invoice.isPackageInvoice ? "Vehicle Rental" : "Base Rental"}
+                      {invoice.isPackageInvoice && invoice.useFlatVehicleRate && (
+                        <span className="ml-2 text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+                          Flat Rate
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-slate-500 ml-2">
+                      {invoice.useFlatVehicleRate
+                        ? `(${formatCurrency(invoice.dailyRate)} flat rate)`
+                        : `(${invoice.rentalDays} days × ${formatCurrency(invoice.dailyRate)})`
+                      }
+                    </span>
                   </td>
                   <td className="py-3 text-right text-slate-900">{formatCurrency(invoice.rentalAmount)}</td>
                 </tr>
 
-                {/* Packages */}
-                {invoice.booking.packages.map((pkg) => (
+                {/* Package Base Price - Only for package bookings */}
+                {invoice.isPackageInvoice && invoice.packageBasePrice && invoice.packageBasePrice > 0 && (
+                  <tr>
+                    <td className="py-3">
+                      <span className="text-slate-900">Package Base Price</span>
+                      <span className="text-slate-500 ml-2">({invoice.packageName})</span>
+                    </td>
+                    <td className="py-3 text-right text-slate-900">{formatCurrency(invoice.packageBasePrice)}</td>
+                  </tr>
+                )}
+
+                {/* Custom Costs - For package bookings */}
+                {invoice.isPackageInvoice && parseCustomCosts(invoice.customCostsDetails).map((cost, idx) => (
+                  <tr key={`custom-cost-${idx}`}>
+                    <td className="py-3">
+                      <span className="text-slate-900">{cost.name}</span>
+                      <span className="text-slate-400 ml-2 text-xs">(Package Service)</span>
+                    </td>
+                    <td className="py-3 text-right text-slate-900">{formatCurrency(cost.price)}</td>
+                  </tr>
+                ))}
+
+                {/* Regular Packages - Only for non-package bookings */}
+                {!invoice.isPackageInvoice && invoice.booking.packages.map((pkg) => (
                   <tr key={pkg.id}>
                     <td className="py-3 text-slate-900">{pkg.package.name}</td>
                     <td className="py-3 text-right text-slate-900">{formatCurrency(pkg.price)}</td>
