@@ -137,10 +137,31 @@ export async function POST(
           );
         }
 
+        // Use actual dates if provided, otherwise use original dates
+        const actualStartDate = data.actualStartDate && data.actualStartTime
+          ? new Date(`${data.actualStartDate}T${data.actualStartTime}:00`)
+          : booking.collectedAt || booking.startDate;
+        const actualEndDate = data.actualEndDate && data.actualEndTime
+          ? new Date(`${data.actualEndDate}T${data.actualEndTime}:00`)
+          : new Date();
+
+        // Calculate rental days from actual dates
+        const actualRentalDays = Math.max(1, Math.ceil(
+          (new Date(actualEndDate).getTime() - new Date(actualStartDate).getTime()) / (1000 * 60 * 60 * 24)
+        ));
+
+        // Recalculate base rental amount if dates were edited
+        const dailyRate = Number(booking.vehicle.pricePerDay);
+        const recalculatedBaseAmount = dailyRate * actualRentalDays;
+
         const returnOdometer = parseInt(data.returnOdometer);
         const collectionOdometer = booking.collectionOdometer || 0;
         const totalMileage = returnOdometer - collectionOdometer;
-        const freeMileage = booking.freeMileage || calculateFreeMileage(booking.startDate, booking.endDate);
+
+        // Calculate free mileage based on actual rental days
+        const freeMileagePerDay = mileageConfig.freeMileagePerDay;
+        const freeMileage = actualRentalDays * freeMileagePerDay;
+
         const extraMileage = Math.max(0, totalMileage - freeMileage);
         const extraMileageRate = Number(booking.extraMileageRate) || mileageConfig.extraMileageRate;
         const extraMileageCost = extraMileage * extraMileageRate;
@@ -151,11 +172,23 @@ export async function POST(
         const lateReturnCharge = data.lateReturnCharge ? parseFloat(data.lateReturnCharge) : 0;
         const otherCharges = data.otherCharges ? parseFloat(data.otherCharges) : 0;
 
-        // Calculate final amount
-        const baseAmount = Number(booking.totalPrice);
-        const totalAdditional = extraMileageCost + fuelCharge + damageCharge + lateReturnCharge + otherCharges;
+        // Calculate package charges for actual rental days
+        let packageCharges = 0;
+        if (booking.packages && booking.packages.length > 0) {
+          for (const bp of booking.packages) {
+            const pkg = bp.package;
+            if (pkg.basePrice) {
+              packageCharges += Number(pkg.basePrice);
+            } else if (pkg.pricePerDay) {
+              packageCharges += Number(pkg.pricePerDay) * actualRentalDays;
+            }
+          }
+        }
+
+        // Calculate final amount with recalculated base
+        const totalAdditional = extraMileageCost + fuelCharge + damageCharge + lateReturnCharge + otherCharges + packageCharges;
         const discountAmount = data.discountAmount ? parseFloat(data.discountAmount) : 0;
-        const finalAmount = baseAmount + totalAdditional - discountAmount;
+        const finalAmount = recalculatedBaseAmount + totalAdditional - discountAmount;
         // Only deduct advance if it was actually paid (checkbox was ticked)
         const advanceAmount = booking.advancePaid ? (Number(booking.advanceAmount) || 0) : 0;
         const balanceDue = finalAmount - advanceAmount;
@@ -164,11 +197,17 @@ export async function POST(
           where: { id },
           data: {
             status: "COMPLETED",
+            // Store actual rental dates
+            startDate: actualStartDate,
+            endDate: actualEndDate,
             returnedAt: new Date(),
             returnOdometer,
             returnFuelLevel: data.returnFuelLevel || null,
             returnNotes: data.returnNotes || null,
             returnedBy: session.user.id,
+            // Update totals based on actual dates
+            totalPrice: recalculatedBaseAmount + packageCharges,
+            freeMileage,
             totalMileage,
             extraMileage,
             extraMileageCost,
@@ -226,11 +265,10 @@ export async function POST(
         }
         const invoiceNumber = `${invoiceConfig.invoicePrefix}-${year}-${String(nextNumber).padStart(6, "0")}`;
 
-        // Calculate rental days based on ACTUAL collection and return dates (not booking dates)
-        // collectedAt = when vehicle was actually collected
-        // returnedAt = when vehicle was actually returned (just completed)
-        const actualStartDate = booking.collectedAt || booking.startDate;
-        const actualEndDate = booking.returnedAt || new Date();
+        // Calculate rental days based on ACTUAL rental period dates
+        // These are updated in the 'complete' action if custom dates were provided
+        const actualStartDate = booking.startDate;
+        const actualEndDate = booking.endDate;
 
         // Calculate days - minimum 1 day
         const msPerDay = 1000 * 60 * 60 * 24;
@@ -267,7 +305,7 @@ export async function POST(
           data: {
             bookingId: id,
             invoiceNumber,
-            status: "DRAFT",
+            status: advancePaid > 0 ? "PARTIALLY_PAID" : "DRAFT",
             // Store actual rental period dates
             rentalStartDate: actualStartDate,
             rentalEndDate: actualEndDate,
@@ -294,6 +332,7 @@ export async function POST(
             taxAmount: taxAmount > 0 ? taxAmount : null,
             totalAmount,
             advancePaid: advancePaid > 0 ? advancePaid : null,
+            amountPaid: advancePaid, // Include advance in amount paid
             balanceDue,
             dueDate: new Date(Date.now() + invoiceConfig.paymentTermsDays * 24 * 60 * 60 * 1000),
             termsAndConditions: invoiceConfig.defaultTerms,
@@ -301,6 +340,20 @@ export async function POST(
             createdBy: session.user.id,
           },
         });
+
+        // If advance was paid, create a payment record for it
+        if (advancePaid > 0) {
+          await prisma.invoicePayment.create({
+            data: {
+              invoiceId: invoice.id,
+              amount: advancePaid,
+              method: booking.advancePaymentMethod || "CASH",
+              notes: "Advance payment collected at booking confirmation",
+              receivedBy: session.user.id,
+              paidAt: booking.advancePaidAt || booking.confirmedAt || new Date(),
+            },
+          });
+        }
 
         // Update booking status
         updatedBooking = await prisma.booking.update({

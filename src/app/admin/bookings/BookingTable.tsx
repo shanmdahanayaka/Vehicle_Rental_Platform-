@@ -148,6 +148,11 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
     otherChargesNote: "",
     discountAmount: "",
     discountReason: "",
+    // Editable rental dates
+    actualStartDate: "",
+    actualStartTime: "",
+    actualEndDate: "",
+    actualEndTime: "",
   });
 
   const [paymentForm, setPaymentForm] = useState({
@@ -211,6 +216,10 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
       setCollectionDocuments([]);
       setUploadForm({ type: "ID_CARD", title: "", description: "" });
     } else if (type === "complete") {
+      // Initialize with collection date as start and current date as end
+      const collectedDate = booking.collectedAt ? new Date(booking.collectedAt) : new Date(booking.startDate);
+      const returnDate = new Date();
+
       setCompleteForm({
         returnOdometer: "",
         returnFuelLevel: booking.collectionFuelLevel || "FULL",
@@ -222,6 +231,11 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
         otherChargesNote: "",
         discountAmount: "",
         discountReason: "",
+        // Initialize editable dates
+        actualStartDate: collectedDate.toISOString().split("T")[0],
+        actualStartTime: collectedDate.toTimeString().slice(0, 5),
+        actualEndDate: returnDate.toISOString().split("T")[0],
+        actualEndTime: returnDate.toTimeString().slice(0, 5),
       });
     } else if (type === "payment" && booking.invoice) {
       setPaymentForm({
@@ -404,14 +418,20 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
     return Math.max(1, Math.ceil(diffMs / msPerDay));
   };
 
-  // Get actual rental period based on collection and return dates
-  // NOT booking dates - use actual vehicle handover dates
+  // Get actual rental period based on editable form dates
+  // Uses the dates from the complete form if provided
   const getActualRentalDays = () => {
     if (!selectedBooking) return 1;
 
-    // Use actual collection date (when vehicle was handed over to customer)
+    // Use editable dates from the form if available
+    if (completeForm.actualStartDate && completeForm.actualEndDate) {
+      const startDate = new Date(`${completeForm.actualStartDate}T${completeForm.actualStartTime || "12:00"}:00`);
+      const endDate = new Date(`${completeForm.actualEndDate}T${completeForm.actualEndTime || "12:00"}:00`);
+      return calculateRentalDays(startDate, endDate);
+    }
+
+    // Fallback to collection date and current time
     const actualStartDate = selectedBooking.collectedAt || selectedBooking.startDate;
-    // Use current time as return date (vehicle being returned now)
     const actualEndDate = new Date();
 
     return calculateRentalDays(actualStartDate, actualEndDate);
@@ -1376,6 +1396,64 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
               {/* ========== COMPLETE MODAL ========== */}
               {modalType === "complete" && (
                 <div className="space-y-4">
+                  {/* Editable Rental Period */}
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <p className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Actual Rental Period (Editable)
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-blue-600 mb-1">Pickup Date</label>
+                        <input
+                          type="date"
+                          value={completeForm.actualStartDate}
+                          onChange={(e) => setCompleteForm({ ...completeForm, actualStartDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-blue-600 mb-1">Pickup Time</label>
+                        <input
+                          type="time"
+                          value={completeForm.actualStartTime}
+                          onChange={(e) => setCompleteForm({ ...completeForm, actualStartTime: e.target.value })}
+                          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-blue-600 mb-1">Return Date</label>
+                        <input
+                          type="date"
+                          value={completeForm.actualEndDate}
+                          onChange={(e) => setCompleteForm({ ...completeForm, actualEndDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-blue-600 mb-1">Return Time</label>
+                        <input
+                          type="time"
+                          value={completeForm.actualEndTime}
+                          onChange={(e) => setCompleteForm({ ...completeForm, actualEndTime: e.target.value })}
+                          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
+                        />
+                      </div>
+                    </div>
+                    {/* Calculated Days Preview */}
+                    {completeForm.actualStartDate && completeForm.actualEndDate && (
+                      <div className="mt-3 pt-3 border-t border-blue-200 text-center">
+                        <p className="text-sm text-blue-600">
+                          Rental Duration: <span className="font-bold text-blue-800">
+                            {Math.max(1, Math.ceil((new Date(`${completeForm.actualEndDate}T${completeForm.actualEndTime || "12:00"}`).getTime() - new Date(`${completeForm.actualStartDate}T${completeForm.actualStartTime || "12:00"}`).getTime()) / (1000 * 60 * 60 * 24)))} days
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="p-4 bg-purple-50 rounded-xl">
                     <div className="flex justify-between items-start">
                       <div>
@@ -1630,31 +1708,41 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
               {/* ========== INVOICE MODAL ========== */}
               {modalType === "invoice" && (
                 <div className="space-y-4">
-                  {/* Actual Rental Period */}
+                  {/* Actual Rental Period - uses startDate/endDate which are updated when completing rental */}
                   <div className="p-4 bg-blue-50 rounded-xl">
                     <p className="text-sm font-semibold text-blue-700 mb-2">Actual Rental Period</p>
                     <div className="grid grid-cols-3 gap-4 text-center text-sm">
                       <div>
-                        <p className="text-xs text-blue-500">Collection Date</p>
+                        <p className="text-xs text-blue-500">Pickup Date</p>
                         <p className="font-bold text-blue-900">
-                          {selectedBooking.collectedAt
-                            ? new Date(selectedBooking.collectedAt).toLocaleDateString()
+                          {selectedBooking.startDate
+                            ? new Date(selectedBooking.startDate).toLocaleDateString()
                             : "-"}
+                        </p>
+                        <p className="text-xs text-blue-400">
+                          {selectedBooking.startDate
+                            ? new Date(selectedBooking.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : ""}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-blue-500">Return Date</p>
                         <p className="font-bold text-blue-900">
-                          {selectedBooking.returnedAt
-                            ? new Date(selectedBooking.returnedAt).toLocaleDateString()
+                          {selectedBooking.endDate
+                            ? new Date(selectedBooking.endDate).toLocaleDateString()
                             : "-"}
+                        </p>
+                        <p className="text-xs text-blue-400">
+                          {selectedBooking.endDate
+                            ? new Date(selectedBooking.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : ""}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-blue-500">Actual Days</p>
                         <p className="font-bold text-blue-900">
-                          {selectedBooking.collectedAt && selectedBooking.returnedAt
-                            ? calculateRentalDays(selectedBooking.collectedAt, selectedBooking.returnedAt)
+                          {selectedBooking.startDate && selectedBooking.endDate
+                            ? calculateRentalDays(selectedBooking.startDate, selectedBooking.endDate)
                             : "-"} days
                         </p>
                       </div>
@@ -1674,8 +1762,8 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
                           <p className="text-xs text-slate-500">Free Mileage</p>
                           <p className="font-bold text-emerald-600">{selectedBooking.freeMileage} km</p>
                           <p className="text-xs text-emerald-500">
-                            ({selectedBooking.collectedAt && selectedBooking.returnedAt
-                              ? calculateRentalDays(selectedBooking.collectedAt, selectedBooking.returnedAt)
+                            ({selectedBooking.startDate && selectedBooking.endDate
+                              ? calculateRentalDays(selectedBooking.startDate, selectedBooking.endDate)
                               : "-"} days × {mileageConfig.freeMileagePerDay} km)
                           </p>
                         </div>
