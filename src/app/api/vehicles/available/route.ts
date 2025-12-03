@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    // Get all active vehicles
+    // Get all available vehicles
     const allVehicles = await prisma.vehicle.findMany({
       where: {
-        status: "ACTIVE",
+        available: true,
       },
       select: {
         id: true,

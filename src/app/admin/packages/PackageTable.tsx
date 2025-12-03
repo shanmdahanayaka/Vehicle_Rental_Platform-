@@ -430,7 +430,7 @@ function PackageModal({
     isGlobal: pkg?.isGlobal ?? true,
     sortOrder: pkg?.sortOrder?.toString() || "0",
     icon: pkg?.icon || "",
-    images: parseImages(pkg?.images),
+    images: parseImages(pkg?.images || null),
     videoUrl: pkg?.videoUrl || "",
     policyIds: pkg?.policies.map((pp) => pp.policy.id) || [],
     vehiclePackages: pkg?.vehiclePackages?.map((vp) => ({
@@ -542,7 +542,7 @@ function PackageModal({
   const addCustomCost = () => {
     setFormData((prev) => ({
       ...prev,
-      customCosts: [...prev.customCosts, { name: "", description: "", price: "", isOptional: false }],
+      customCosts: [...prev.customCosts, { id: undefined, name: "", description: "", price: "", isOptional: false }],
     }));
   };
 

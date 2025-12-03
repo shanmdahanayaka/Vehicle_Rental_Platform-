@@ -292,6 +292,8 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
         actualStartTime: collectedDate.toTimeString().slice(0, 5),
         actualEndDate: returnDate.toISOString().split("T")[0],
         actualEndTime: returnDate.toTimeString().slice(0, 5),
+        // Package booking flat rate option
+        useFlatVehicleRate: false,
       });
     } else if (type === "payment" && booking.invoice) {
       setPaymentForm({

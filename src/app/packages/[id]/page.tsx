@@ -99,7 +99,7 @@ async function getAvailableVehicles(packageId: string, isGlobal: boolean, vehicl
       year: v.year,
       pricePerDay: Number(v.pricePerDay),
       packagePrice: null,
-      images: v.images,
+      images: parseImages(v.images),
       transmission: v.transmission,
       fuelType: v.fuelType,
       seats: v.seats,
@@ -118,7 +118,7 @@ async function getAvailableVehicles(packageId: string, isGlobal: boolean, vehicl
       year: vp.vehicle.year,
       pricePerDay: Number(vp.vehicle.pricePerDay),
       packagePrice: vp.customPrice ? Number(vp.customPrice) : null,
-      images: vp.vehicle.images,
+      images: parseImages(vp.vehicle.images),
       transmission: vp.vehicle.transmission,
       fuelType: vp.vehicle.fuelType,
       seats: vp.vehicle.seats,
@@ -234,7 +234,7 @@ export default async function PackageDetailPage({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span className="text-white text-sm">
-                  Min: {pkg.minDuration} {pkg.type === "HOURLY" ? "hours" : "days"}
+                  Min: {pkg.minDuration} {pkg.pricePerHour ? "hours" : "days"}
                 </span>
               </div>
             )}
@@ -244,7 +244,7 @@ export default async function PackageDetailPage({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span className="text-white text-sm">
-                  Max: {pkg.maxDuration} {pkg.type === "HOURLY" ? "hours" : "days"}
+                  Max: {pkg.maxDuration} {pkg.pricePerHour ? "hours" : "days"}
                 </span>
               </div>
             )}
