@@ -70,18 +70,39 @@ export async function POST(
           include: { vehicle: true, user: true },
         });
 
-        // Send notification
+        // Send notification (package-specific or regular)
         const vehicleName = `${booking.vehicle.brand} ${booking.vehicle.model}`;
-        const startDate = new Date(booking.startDate).toLocaleDateString();
-        const notification = NotificationTemplates.bookingConfirmed(
-          booking.id,
-          vehicleName,
-          startDate
-        );
-        await sendNotification({
-          userId: booking.userId,
-          ...notification,
+        const startDateFormatted = new Date(booking.startDate).toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
         });
+
+        if (booking.isPackageBooking && booking.primaryPackage) {
+          // Package booking confirmation notification
+          const notification = NotificationTemplates.packageBookingConfirmed(
+            booking.id,
+            booking.primaryPackage.name,
+            vehicleName,
+            startDateFormatted
+          );
+          await sendNotification({
+            userId: booking.userId,
+            ...notification,
+          });
+        } else {
+          // Regular booking confirmation notification
+          const notification = NotificationTemplates.bookingConfirmed(
+            booking.id,
+            vehicleName,
+            startDateFormatted
+          );
+          await sendNotification({
+            userId: booking.userId,
+            ...notification,
+          });
+        }
 
         break;
       }
@@ -569,16 +590,29 @@ export async function POST(
           });
         }
 
-        // Send cancellation notification
-        const vehicleName = `${booking.vehicle.brand} ${booking.vehicle.model}`;
-        const notification = NotificationTemplates.bookingCancelled(
-          booking.id,
-          vehicleName
-        );
-        await sendNotification({
-          userId: booking.userId,
-          ...notification,
-        });
+        // Send cancellation notification (package-specific or regular)
+        if (booking.isPackageBooking && booking.primaryPackage) {
+          // Package booking cancellation notification
+          const notification = NotificationTemplates.packageBookingCancelled(
+            booking.id,
+            booking.primaryPackage.name
+          );
+          await sendNotification({
+            userId: booking.userId,
+            ...notification,
+          });
+        } else {
+          // Regular booking cancellation notification
+          const vehicleName = `${booking.vehicle.brand} ${booking.vehicle.model}`;
+          const notification = NotificationTemplates.bookingCancelled(
+            booking.id,
+            vehicleName
+          );
+          await sendNotification({
+            userId: booking.userId,
+            ...notification,
+          });
+        }
 
         break;
       }

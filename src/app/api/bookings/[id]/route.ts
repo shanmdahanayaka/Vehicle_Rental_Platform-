@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { sendNotification, notifyAdmins } from "@/lib/notifications";
+import { sendNotification, notifyAdmins, NotificationTemplates } from "@/lib/notifications";
 import { pusherServer } from "@/lib/pusher-server";
 import { CHANNELS, EVENTS } from "@/lib/pusher-client";
 
@@ -78,6 +78,7 @@ export async function PATCH(
       include: {
         vehicle: true,
         user: true,
+        primaryPackage: true,
       },
     });
 
@@ -127,24 +128,48 @@ export async function PATCH(
         });
       }
 
-      // Send notification to user
+      // Send notification to user (package-specific or regular)
       const vehicleName = `${booking.vehicle.brand} ${booking.vehicle.model}`;
-      await sendNotification({
-        userId: booking.userId,
-        type: "BOOKING_CANCELLED",
-        title: "Booking Cancelled",
-        message: `Your booking for ${vehicleName} has been cancelled.`,
-        data: { bookingId: booking.id },
-      });
 
-      // Notify admins if user cancelled
-      if (!isAdmin) {
-        await notifyAdmins({
-          type: "BOOKING_CANCELLED",
-          title: "Booking Cancelled by User",
-          message: `${booking.user.name || booking.user.email} cancelled their booking for ${vehicleName}.`,
-          data: { bookingId: booking.id, userId: booking.userId },
+      if (booking.isPackageBooking && booking.primaryPackage) {
+        // Package booking cancellation notification
+        const notification = NotificationTemplates.packageBookingCancelled(
+          booking.id,
+          booking.primaryPackage.name
+        );
+        await sendNotification({
+          userId: booking.userId,
+          ...notification,
         });
+
+        // Notify admins if user cancelled
+        if (!isAdmin) {
+          const adminNotification = NotificationTemplates.adminPackageBookingCancelled(
+            booking.id,
+            booking.user.name || booking.user.email || "Customer",
+            booking.primaryPackage.name
+          );
+          await notifyAdmins(adminNotification);
+        }
+      } else {
+        // Regular booking cancellation notification
+        await sendNotification({
+          userId: booking.userId,
+          type: "BOOKING_CANCELLED",
+          title: "Booking Cancelled",
+          message: `Your booking for ${vehicleName} has been cancelled.`,
+          data: { bookingId: booking.id },
+        });
+
+        // Notify admins if user cancelled
+        if (!isAdmin) {
+          await notifyAdmins({
+            type: "BOOKING_CANCELLED",
+            title: "Booking Cancelled by User",
+            message: `${booking.user.name || booking.user.email} cancelled their booking for ${vehicleName}.`,
+            data: { bookingId: booking.id, userId: booking.userId },
+          });
+        }
       }
 
       // Real-time sync for admin dashboard
@@ -154,7 +179,11 @@ export async function PATCH(
         {
           bookingId: booking.id,
           status: "CANCELLED",
-          message: "Booking cancelled",
+          message: booking.isPackageBooking && booking.primaryPackage
+            ? `Package booking "${booking.primaryPackage.name}" cancelled`
+            : "Booking cancelled",
+          isPackageBooking: booking.isPackageBooking,
+          packageName: booking.primaryPackage?.name,
         }
       );
 

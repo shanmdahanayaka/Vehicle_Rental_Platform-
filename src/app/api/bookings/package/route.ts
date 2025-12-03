@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendNotification, NotificationTemplates } from "@/lib/notifications";
+import { sendNotification, notifyAdmins, NotificationTemplates } from "@/lib/notifications";
 import { pusherServer } from "@/lib/pusher-server";
 import { CHANNELS, EVENTS } from "@/lib/pusher-client";
 
@@ -215,17 +215,42 @@ export async function POST(request: Request) {
       },
     });
 
-    // Send notification
-    const template = NotificationTemplates.bookingCreated(
+    // Format start date for notifications
+    const formattedStartDate = start.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    // Send notification to user with package-specific template
+    const userTemplate = NotificationTemplates.packageBookingCreated(
       booking.id,
-      `${vehicle.brand} ${vehicle.model}`
+      pkg.name,
+      `${vehicle.brand} ${vehicle.model}`,
+      formattedStartDate
     );
     await sendNotification({
       userId: session.user.id,
-      title: template.title,
-      message: template.message,
-      type: template.type,
-      data: template.data,
+      title: userTemplate.title,
+      message: userTemplate.message,
+      type: userTemplate.type,
+      data: userTemplate.data,
+    });
+
+    // Notify all admins about the new package booking
+    const adminTemplate = NotificationTemplates.adminNewPackageBooking(
+      booking.id,
+      user.name || user.email || "Customer",
+      pkg.name,
+      `${vehicle.brand} ${vehicle.model}`,
+      totalAmount
+    );
+    await notifyAdmins({
+      title: adminTemplate.title,
+      message: adminTemplate.message,
+      type: adminTemplate.type,
+      data: adminTemplate.data,
     });
 
     // Notify admin dashboard of new booking (real-time sync)
@@ -234,7 +259,10 @@ export async function POST(request: Request) {
       EVENTS.NEW_BOOKING,
       {
         bookingId: booking.id,
-        message: "New booking created",
+        message: `New package booking: ${pkg.name}`,
+        isPackageBooking: true,
+        packageName: pkg.name,
+        customerName: user.name || user.email,
       }
     );
 

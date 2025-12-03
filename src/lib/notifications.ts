@@ -142,6 +142,43 @@ export const NotificationTemplates = {
     message: `Your rental of ${vehicleName} has been completed. Thank you for choosing us!`,
     data: { bookingId },
   }),
+
+  // Package booking notifications
+  packageBookingCreated: (bookingId: string, packageName: string, vehicleName: string, startDate: string) => ({
+    type: NotificationType.BOOKING_CREATED,
+    title: "Package Booking Created",
+    message: `Your "${packageName}" package booking with ${vehicleName} has been created for ${startDate}. Pending confirmation.`,
+    data: { bookingId, isPackageBooking: true },
+  }),
+
+  packageBookingConfirmed: (bookingId: string, packageName: string, vehicleName: string, startDate: string) => ({
+    type: NotificationType.BOOKING_CONFIRMED,
+    title: "Package Booking Confirmed",
+    message: `Great news! Your "${packageName}" package with ${vehicleName} is confirmed for ${startDate}. Get ready for your trip!`,
+    data: { bookingId, isPackageBooking: true },
+  }),
+
+  packageBookingCancelled: (bookingId: string, packageName: string) => ({
+    type: NotificationType.BOOKING_CANCELLED,
+    title: "Package Booking Cancelled",
+    message: `Your "${packageName}" package booking has been cancelled.`,
+    data: { bookingId, isPackageBooking: true },
+  }),
+
+  // Admin notifications for package bookings
+  adminNewPackageBooking: (bookingId: string, customerName: string, packageName: string, vehicleName: string, totalAmount: number, currencySymbol: string = "Rs.") => ({
+    type: NotificationType.SYSTEM,
+    title: "New Package Booking",
+    message: `${customerName} booked "${packageName}" package with ${vehicleName}. Total: ${currencySymbol}${totalAmount.toLocaleString()}`,
+    data: { bookingId, isPackageBooking: true },
+  }),
+
+  adminPackageBookingCancelled: (bookingId: string, customerName: string, packageName: string) => ({
+    type: NotificationType.SYSTEM,
+    title: "Package Booking Cancelled",
+    message: `${customerName} cancelled their "${packageName}" package booking.`,
+    data: { bookingId, isPackageBooking: true },
+  }),
 };
 
 // Send notification to multiple users
