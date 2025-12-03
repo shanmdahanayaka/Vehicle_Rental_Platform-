@@ -119,6 +119,29 @@ export const NotificationTemplates = {
     message,
     data: {},
   }),
+
+  invoiceGenerated: (invoiceId: string, invoiceNumber: string, totalAmount: number, currencySymbol: string = "Rs.") => ({
+    type: NotificationType.SYSTEM,
+    title: "Invoice Generated",
+    message: `Invoice ${invoiceNumber} for ${currencySymbol}${totalAmount.toLocaleString()} has been generated for your rental.`,
+    data: { invoiceId, invoiceNumber },
+  }),
+
+  invoicePaymentReceived: (invoiceId: string, invoiceNumber: string, amount: number, balanceDue: number, currencySymbol: string = "Rs.") => ({
+    type: NotificationType.PAYMENT_SUCCESS,
+    title: "Payment Received",
+    message: balanceDue <= 0
+      ? `Payment of ${currencySymbol}${amount.toLocaleString()} received. Invoice ${invoiceNumber} is now fully paid. Thank you!`
+      : `Payment of ${currencySymbol}${amount.toLocaleString()} received for invoice ${invoiceNumber}. Remaining balance: ${currencySymbol}${balanceDue.toLocaleString()}`,
+    data: { invoiceId, invoiceNumber },
+  }),
+
+  rentalCompleted: (bookingId: string, vehicleName: string) => ({
+    type: NotificationType.SYSTEM,
+    title: "Rental Completed",
+    message: `Your rental of ${vehicleName} has been completed. Thank you for choosing us!`,
+    data: { bookingId },
+  }),
 };
 
 // Send notification to multiple users

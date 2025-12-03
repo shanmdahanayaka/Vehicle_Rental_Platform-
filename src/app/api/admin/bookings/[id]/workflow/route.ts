@@ -230,6 +230,17 @@ export async function POST(
           data: { available: true },
         });
 
+        // Send rental completed notification
+        const vehicleNameComplete = `${booking.vehicle.brand} ${booking.vehicle.model}`;
+        const completeNotification = NotificationTemplates.rentalCompleted(
+          booking.id,
+          vehicleNameComplete
+        );
+        await sendNotification({
+          userId: booking.userId,
+          ...completeNotification,
+        });
+
         break;
       }
 
@@ -362,6 +373,17 @@ export async function POST(
           include: { vehicle: true, user: true, invoice: true },
         });
 
+        // Send invoice generated notification
+        const invoiceNotification = NotificationTemplates.invoiceGenerated(
+          invoice.id,
+          invoiceNumber,
+          totalAmount
+        );
+        await sendNotification({
+          userId: booking.userId,
+          ...invoiceNotification,
+        });
+
         break;
       }
 
@@ -424,6 +446,18 @@ export async function POST(
             include: { vehicle: true, user: true, invoice: true },
           });
         }
+
+        // Send payment received notification
+        const paymentNotification = NotificationTemplates.invoicePaymentReceived(
+          booking.invoice.id,
+          booking.invoice.invoiceNumber,
+          paymentAmount,
+          Math.max(0, newBalanceDue)
+        );
+        await sendNotification({
+          userId: booking.userId,
+          ...paymentNotification,
+        });
 
         break;
       }
