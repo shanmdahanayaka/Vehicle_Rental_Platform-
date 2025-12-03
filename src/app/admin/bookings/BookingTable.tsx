@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { formatCurrency, mileageConfig, fuelLevels, paymentMethods, documentTypes } from "@/config/site";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import CreateBookingModal from "./CreateBookingModal";
 
 interface Booking {
   id: string;
@@ -103,13 +105,21 @@ interface BookingTableProps {
 type ModalType = "confirm" | "collect" | "complete" | "invoice" | "payment" | "view" | null;
 
 export default function BookingTable({ initialBookings }: BookingTableProps) {
+  const router = useRouter();
   const [bookings, setBookings] = useState(initialBookings);
   const [statusFilter, setStatusFilter] = useState("");
+
+  // Sync bookings state when initialBookings prop changes (after router.refresh())
+  useEffect(() => {
+    setBookings(initialBookings);
+  }, [initialBookings]);
+
   const [search, setSearch] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Form states for different modals
   const [confirmForm, setConfirmForm] = useState({
@@ -551,44 +561,56 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-md">
-          <svg
-            className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center flex-1">
+          <div className="relative flex-1 max-w-md">
+            <svg
+              className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search by customer or vehicle..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by customer or vehicle..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-          />
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="COLLECTED">Collected</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="INVOICED">Invoiced</option>
+            <option value="PAID">Paid</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium hover:from-blue-700 hover:to-purple-700 transition shadow-lg shadow-blue-500/25"
         >
-          <option value="">All Statuses</option>
-          <option value="PENDING">Pending</option>
-          <option value="CONFIRMED">Confirmed</option>
-          <option value="COLLECTED">Collected</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="INVOICED">Invoiced</option>
-          <option value="PAID">Paid</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Create Booking
+        </button>
       </div>
 
       {/* Table */}
@@ -1847,6 +1869,16 @@ export default function BookingTable({ initialBookings }: BookingTableProps) {
           </div>
         </div>
       )}
+
+      {/* Create Booking Modal */}
+      <CreateBookingModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          setShowCreateModal(false);
+          router.refresh();
+        }}
+      />
     </>
   );
 }

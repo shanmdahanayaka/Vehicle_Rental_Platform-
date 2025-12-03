@@ -136,33 +136,50 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, email, password, phone, role, status } = body;
 
-    // Validate required fields
-    if (!email || !password) {
+    // For quick customer creation (from booking modal), only name and phone are required
+    // Email and password are optional - we generate a temporary password if needed
+    if (!name && !email) {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        { error: "Name or email is required" },
         { status: 400 }
       );
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 }
-      );
+    // If email is provided, validate format
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return NextResponse.json(
+          { error: "Invalid email format" },
+          { status: 400 }
+        );
+      }
+
+      // Check if email already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: "Email already registered" },
+          { status: 400 }
+        );
+      }
     }
 
-    // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    // Check if phone already exists (if provided)
+    if (phone) {
+      const existingPhone = await prisma.user.findFirst({
+        where: { phone },
+      });
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 400 }
-      );
+      if (existingPhone) {
+        return NextResponse.json(
+          { error: "Phone number already registered" },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if user can assign the requested role
@@ -174,14 +191,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Use provided password, or phone number as initial password, or generate random
+    const userPassword = password || phone || Math.random().toString(36).slice(-12);
+    const hashedPassword = await bcrypt.hash(userPassword, 10);
+
+    // Generate a placeholder email if not provided (required by schema)
+    // Use phone number or random string to create unique placeholder
+    const userEmail = email || `customer_${phone || Date.now()}@placeholder.local`;
 
     // Create user
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: name || "Customer",
+        email: userEmail,
         password: hashedPassword,
         phone,
         role: requestedRole,
@@ -210,7 +232,7 @@ export async function POST(request: Request) {
       userAgent,
     });
 
-    return NextResponse.json(user, { status: 201 });
+    return NextResponse.json({ user, success: true }, { status: 201 });
   } catch (error) {
     console.error("Error creating user:", error);
     return NextResponse.json(
