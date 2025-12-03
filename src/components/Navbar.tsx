@@ -44,6 +44,7 @@ export default function Navbar() {
               <>
                 <Link
                   href="/vehicles"
+                  data-tour="vehicles-link"
                   className={`transition font-medium ${
                     pathname === "/vehicles" ? "text-blue-600" : "text-slate-600 hover:text-blue-600"
                   }`}
@@ -52,6 +53,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/packages"
+                  data-tour="packages-link"
                   className={`transition font-medium ${
                     pathname === "/packages" || pathname?.startsWith("/packages/") ? "text-blue-600" : "text-slate-600 hover:text-blue-600"
                   }`}
@@ -88,6 +90,7 @@ export default function Navbar() {
               <>
                 <Link
                   href="/bookings"
+                  data-tour="bookings-link"
                   className="text-slate-600 hover:text-blue-600 transition font-medium"
                 >
                   My Bookings
@@ -104,6 +107,7 @@ export default function Navbar() {
                 {/* Favorites */}
                 <Link
                   href="/favorites"
+                  data-tour="favorites-link"
                   className="relative p-2 text-slate-600 hover:text-red-500 transition"
                   title="My Favorites"
                 >
@@ -115,6 +119,7 @@ export default function Navbar() {
                 {/* Cart */}
                 <Link
                   href="/cart"
+                  data-tour="cart-link"
                   className="relative p-2 text-slate-600 hover:text-blue-600 transition"
                   title="My Cart"
                 >
@@ -124,10 +129,12 @@ export default function Navbar() {
                 </Link>
 
                 {/* Notification Bell */}
-                <NotificationBell />
+                <div data-tour="notifications">
+                  <NotificationBell />
+                </div>
 
                 {/* User Dropdown */}
-                <div className="relative" ref={userMenuRef}>
+                <div className="relative" ref={userMenuRef} data-tour="profile">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-100 transition"

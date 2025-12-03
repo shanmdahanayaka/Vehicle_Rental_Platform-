@@ -186,7 +186,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Quick Stats Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-tour="stats-cards" className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <div
             key={stat.title}
@@ -224,12 +224,14 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Analytics Dashboard */}
-      <AnalyticsDashboard />
+      <div data-tour="analytics">
+        <AnalyticsDashboard />
+      </div>
 
       {/* Recent Activity Section */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Recent Bookings */}
-        <div className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div data-tour="recent-bookings" className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-slate-900">Recent Bookings</h2>
             <Link
@@ -314,7 +316,7 @@ export default async function AdminDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="space-y-6">
+        <div data-tour="quick-actions" className="space-y-6">
           {/* Active Rentals Card */}
           <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 p-6 text-white shadow-lg">
             <div className="flex items-center justify-between">
