@@ -5,7 +5,7 @@ import { prisma } from "./prisma";
 export type PermissionAction = "create" | "read" | "update" | "delete" | "manage";
 
 // Resource types
-export type Resource = "users" | "vehicles" | "bookings" | "reviews" | "payments" | "permissions" | "audit_logs";
+export type Resource = "users" | "vehicles" | "bookings" | "reviews" | "payments" | "packages" | "policies" | "invoices" | "permissions" | "audit_logs";
 
 // Permission string format: "resource:action"
 export type PermissionString = `${Resource}:${PermissionAction}`;
@@ -45,6 +45,27 @@ export const PERMISSIONS = {
   PAYMENTS_UPDATE: "payments:update" as PermissionString,
   PAYMENTS_MANAGE: "payments:manage" as PermissionString,
 
+  // Package permissions
+  PACKAGES_CREATE: "packages:create" as PermissionString,
+  PACKAGES_READ: "packages:read" as PermissionString,
+  PACKAGES_UPDATE: "packages:update" as PermissionString,
+  PACKAGES_DELETE: "packages:delete" as PermissionString,
+  PACKAGES_MANAGE: "packages:manage" as PermissionString,
+
+  // Policy permissions
+  POLICIES_CREATE: "policies:create" as PermissionString,
+  POLICIES_READ: "policies:read" as PermissionString,
+  POLICIES_UPDATE: "policies:update" as PermissionString,
+  POLICIES_DELETE: "policies:delete" as PermissionString,
+  POLICIES_MANAGE: "policies:manage" as PermissionString,
+
+  // Invoice permissions
+  INVOICES_CREATE: "invoices:create" as PermissionString,
+  INVOICES_READ: "invoices:read" as PermissionString,
+  INVOICES_UPDATE: "invoices:update" as PermissionString,
+  INVOICES_DELETE: "invoices:delete" as PermissionString,
+  INVOICES_MANAGE: "invoices:manage" as PermissionString,
+
   // Permission management
   PERMISSIONS_READ: "permissions:read" as PermissionString,
   PERMISSIONS_MANAGE: "permissions:manage" as PermissionString,
@@ -65,6 +86,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionString[]> = {
     PERMISSIONS.REVIEWS_CREATE,
     PERMISSIONS.REVIEWS_READ,
     PERMISSIONS.REVIEWS_UPDATE,
+    PERMISSIONS.PACKAGES_READ,
+    PERMISSIONS.POLICIES_READ,
   ],
   MANAGER: [
     PERMISSIONS.VEHICLES_READ,
@@ -78,6 +101,14 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionString[]> = {
     PERMISSIONS.REVIEWS_DELETE,
     PERMISSIONS.USERS_READ,
     PERMISSIONS.PAYMENTS_READ,
+    PERMISSIONS.PACKAGES_READ,
+    PERMISSIONS.PACKAGES_UPDATE,
+    PERMISSIONS.POLICIES_READ,
+    PERMISSIONS.INVOICES_READ,
+    PERMISSIONS.INVOICES_CREATE,
+    PERMISSIONS.INVOICES_UPDATE,
+    PERMISSIONS.PERMISSIONS_READ,
+    PERMISSIONS.AUDIT_LOGS_READ,
   ],
   ADMIN: [
     PERMISSIONS.USERS_READ,
@@ -101,6 +132,22 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionString[]> = {
     PERMISSIONS.PAYMENTS_READ,
     PERMISSIONS.PAYMENTS_UPDATE,
     PERMISSIONS.PAYMENTS_MANAGE,
+    PERMISSIONS.PACKAGES_CREATE,
+    PERMISSIONS.PACKAGES_READ,
+    PERMISSIONS.PACKAGES_UPDATE,
+    PERMISSIONS.PACKAGES_DELETE,
+    PERMISSIONS.PACKAGES_MANAGE,
+    PERMISSIONS.POLICIES_CREATE,
+    PERMISSIONS.POLICIES_READ,
+    PERMISSIONS.POLICIES_UPDATE,
+    PERMISSIONS.POLICIES_DELETE,
+    PERMISSIONS.POLICIES_MANAGE,
+    PERMISSIONS.INVOICES_CREATE,
+    PERMISSIONS.INVOICES_READ,
+    PERMISSIONS.INVOICES_UPDATE,
+    PERMISSIONS.INVOICES_DELETE,
+    PERMISSIONS.INVOICES_MANAGE,
+    PERMISSIONS.PERMISSIONS_READ,
     PERMISSIONS.AUDIT_LOGS_READ,
   ],
   SUPER_ADMIN: [

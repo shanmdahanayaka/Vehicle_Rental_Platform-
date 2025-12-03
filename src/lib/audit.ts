@@ -24,7 +24,7 @@ export type AuditAction =
   | "permission.grant"
   | "permission.revoke";
 
-export type AuditResource = "User" | "Vehicle" | "Booking" | "Review" | "Payment" | "Permission";
+export type AuditResource = "User" | "Vehicle" | "Booking" | "Review" | "Payment" | "Permission" | "RolePermission" | "UserPermission";
 
 interface AuditLogParams {
   userId: string;
