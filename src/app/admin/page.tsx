@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { formatCurrency } from "@/config/site";
+import AnalyticsDashboard from "./components/AnalyticsDashboard";
 
-async function getStats() {
+async function getQuickStats() {
   const [
     totalVehicles,
     availableVehicles,
@@ -11,20 +12,16 @@ async function getStats() {
     activeBookings,
     totalUsers,
     recentBookings,
-    // Get revenue from invoices (actual paid amounts)
     invoiceRevenue,
-    // Get advance payments from confirmed bookings that are not yet invoiced
     advancePayments,
-    // Get outstanding balance from invoices
     outstandingBalance,
-    // Count paid invoices
     paidInvoicesCount,
   ] = await Promise.all([
     prisma.vehicle.count(),
     prisma.vehicle.count({ where: { available: true } }),
     prisma.booking.count(),
     prisma.booking.count({ where: { status: "PENDING" } }),
-    prisma.booking.count({ where: { status: "COLLECTED" } }), // Vehicles currently out
+    prisma.booking.count({ where: { status: "COLLECTED" } }),
     prisma.user.count(),
     prisma.booking.findMany({
       take: 5,
@@ -42,32 +39,27 @@ async function getStats() {
         },
       },
     }),
-    // Sum of all invoice payments (actual money received)
     prisma.invoice.aggregate({
       _sum: { amountPaid: true },
     }),
-    // Sum of advance payments from bookings that haven't been invoiced yet
     prisma.booking.aggregate({
       where: {
         advancePaid: true,
-        invoice: null, // Not yet invoiced
+        invoice: null,
       },
       _sum: { advanceAmount: true },
     }),
-    // Sum of outstanding balance from all invoices
     prisma.invoice.aggregate({
       where: {
         status: { notIn: ["PAID", "CANCELLED"] },
       },
       _sum: { balanceDue: true },
     }),
-    // Count of paid invoices
     prisma.invoice.count({
       where: { status: "PAID" },
     }),
   ]);
 
-  // Total revenue = Invoice paid amounts + Advance payments not yet invoiced
   const totalRevenue =
     Number(invoiceRevenue._sum.amountPaid || 0) +
     Number(advancePayments._sum.advanceAmount || 0);
@@ -87,11 +79,9 @@ async function getStats() {
     recentBookings: recentBookings.map((b) => ({
       ...b,
       totalPrice: Number(b.totalPrice),
-      // For display: show invoice total if exists, otherwise booking price
       displayAmount: b.invoice
         ? Number(b.invoice.totalAmount)
         : Number(b.totalPrice),
-      // Show paid amount for paid bookings
       paidAmount: b.invoice ? Number(b.invoice.amountPaid) : 0,
       invoiceStatus: b.invoice?.status || null,
     })),
@@ -99,7 +89,7 @@ async function getStats() {
 }
 
 export default async function AdminDashboard() {
-  const stats = await getStats();
+  const stats = await getQuickStats();
 
   const statCards = [
     {
@@ -174,12 +164,15 @@ export default async function AdminDashboard() {
           <p className="text-slate-500">Welcome back! Here&apos;s what&apos;s happening.</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition">
+          <Link
+            href="/admin/invoices"
+            className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition"
+          >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Export
-          </button>
+            Invoices
+          </Link>
           <Link
             href="/admin/vehicles"
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition"
@@ -192,7 +185,7 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Quick Stats Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <div
@@ -230,7 +223,10 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
-      {/* Content Grid */}
+      {/* Analytics Dashboard */}
+      <AnalyticsDashboard />
+
+      {/* Recent Activity Section */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Recent Bookings */}
         <div className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
@@ -358,24 +354,10 @@ export default async function AdminDashboard() {
             <h3 className="font-semibold text-slate-900">Quick Actions</h3>
             <div className="mt-4 space-y-3">
               <Link
-                href="/admin/vehicles"
-                className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 transition hover:bg-slate-100"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-medium text-slate-700">Add New Vehicle</p>
-                  <p className="text-xs text-slate-500">List a new vehicle</p>
-                </div>
-              </Link>
-              <Link
                 href="/admin/bookings"
                 className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 transition hover:bg-slate-100"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
@@ -383,6 +365,20 @@ export default async function AdminDashboard() {
                 <div>
                   <p className="font-medium text-slate-700">Manage Bookings</p>
                   <p className="text-xs text-slate-500">View all reservations</p>
+                </div>
+              </Link>
+              <Link
+                href="/admin/vehicles"
+                className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 transition hover:bg-slate-100"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-slate-700">Add New Vehicle</p>
+                  <p className="text-xs text-slate-500">List a new vehicle</p>
                 </div>
               </Link>
               <Link
@@ -397,6 +393,20 @@ export default async function AdminDashboard() {
                 <div>
                   <p className="font-medium text-slate-700">Manage Users</p>
                   <p className="text-xs text-slate-500">View customer list</p>
+                </div>
+              </Link>
+              <Link
+                href="/admin/invoices"
+                className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 transition hover:bg-slate-100"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-slate-700">View Invoices</p>
+                  <p className="text-xs text-slate-500">Manage all invoices</p>
                 </div>
               </Link>
             </div>
