@@ -74,7 +74,8 @@ export default function CreateBookingModal({
   // UI states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [step, setStep] = useState(1); // 1: Customer, 2: Vehicle, 3: Dates, 4: Review
+  const [step, setStep] = useState(1); // 1: Customer, 2: Dates, 3: Vehicle, 4: Review
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
 
   // Load data when modal opens
   useEffect(() => {
@@ -86,21 +87,14 @@ export default function CreateBookingModal({
   const loadData = async () => {
     setLoadingData(true);
     try {
-      const [usersRes, vehiclesRes, packagesRes] = await Promise.all([
+      const [usersRes, packagesRes] = await Promise.all([
         fetch("/api/admin/users?limit=100"),
-        fetch("/api/vehicles"),
         fetch("/api/packages"),
       ]);
 
       if (usersRes.ok) {
         const data = await usersRes.json();
         setUsers(data.users || data);
-      }
-      if (vehiclesRes.ok) {
-        const data = await vehiclesRes.json();
-        // Get all vehicles (admin can book any vehicle)
-        const allVehicles = Array.isArray(data) ? data : (data.vehicles || []);
-        setVehicles(allVehicles);
       }
       if (packagesRes.ok) {
         const data = await packagesRes.json();
@@ -111,6 +105,42 @@ export default function CreateBookingModal({
       setError("Failed to load data");
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  // Load available vehicles based on selected dates
+  const loadAvailableVehicles = async () => {
+    if (!startDate || !endDate) return;
+
+    setLoadingVehicles(true);
+    setVehicles([]);
+    setSelectedVehicleId("");
+
+    try {
+      const params = new URLSearchParams({
+        startDate: `${startDate}T${startTime}:00`,
+        endDate: `${endDate}T${endTime}:00`,
+      });
+
+      const res = await fetch(`/api/vehicles/available?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setVehicles(data);
+      } else {
+        // Fallback: get all vehicles if availability API doesn't exist
+        const fallbackRes = await fetch("/api/vehicles");
+        if (fallbackRes.ok) {
+          const data = await fallbackRes.json();
+          const allVehicles = Array.isArray(data) ? data : (data.vehicles || []);
+          // Filter to only available vehicles
+          setVehicles(allVehicles.filter((v: Vehicle) => v.available));
+        }
+      }
+    } catch (err) {
+      console.error("Error loading vehicles:", err);
+      setError("Failed to load available vehicles");
+    } finally {
+      setLoadingVehicles(false);
     }
   };
 
@@ -301,14 +331,23 @@ export default function CreateBookingModal({
       case 1:
         return !!selectedUserId;
       case 2:
-        return !!selectedVehicleId;
-      case 3:
         return !!startDate && !!endDate;
+      case 3:
+        return !!selectedVehicleId;
       case 4:
         return true;
       default:
         return false;
     }
+  };
+
+  // Handle step change - load vehicles when moving to step 3
+  const handleNextStep = () => {
+    if (step === 2 && canProceed()) {
+      // Moving from dates to vehicle selection - load available vehicles
+      loadAvailableVehicles();
+    }
+    setStep(step + 1);
   };
 
   if (!isOpen) return null;
@@ -354,8 +393,8 @@ export default function CreateBookingModal({
                 />
                 <p className={`text-xs mt-1 ${s <= step ? "text-blue-600 font-medium" : "text-slate-400"}`}>
                   {s === 1 && "Customer"}
-                  {s === 2 && "Vehicle"}
-                  {s === 3 && "Details"}
+                  {s === 2 && "Dates"}
+                  {s === 3 && "Vehicle"}
                   {s === 4 && "Review"}
                 </p>
               </div>
@@ -570,126 +609,181 @@ export default function CreateBookingModal({
                 </div>
               )}
 
-              {/* Step 2: Select Vehicle */}
+              {/* Step 2: Select Dates */}
               {step === 2 && (
-                <div className="space-y-4">
-                  <div className="relative">
-                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                      type="text"
-                      placeholder="Search vehicles..."
-                      value={vehicleSearch}
-                      onChange={(e) => setVehicleSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
-                    />
-                  </div>
-
-                  <div className="grid gap-3 max-h-80 overflow-y-auto">
-                    {filteredVehicles.map((vehicle) => {
-                      const image = getVehicleImage(vehicle);
-                      return (
-                        <button
-                          key={vehicle.id}
-                          onClick={() => setSelectedVehicleId(vehicle.id)}
-                          className={`flex items-center gap-4 p-4 rounded-xl border-2 transition text-left ${
-                            selectedVehicleId === vehicle.id
-                              ? "border-blue-600 bg-blue-50"
-                              : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
-                          }`}
-                        >
-                          <div className="w-20 h-14 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0">
-                            {image ? (
-                              <img src={image} alt={vehicle.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h8m-8 4h8m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-slate-900">{vehicle.name}</p>
-                            <p className="text-sm text-slate-500">
-                              {vehicle.brand} {vehicle.model}
-                            </p>
-                            <p className="text-xs text-slate-400">{vehicle.location}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="font-bold text-blue-600">{formatCurrency(vehicle.pricePerDay)}</p>
-                            <p className="text-xs text-slate-400">/day</p>
-                          </div>
-                          {selectedVehicleId === vehicle.id && (
-                            <svg className="w-6 h-6 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-
-                    {filteredVehicles.length === 0 && (
-                      <div className="text-center py-8 text-slate-500">
-                        No available vehicles found
+                <div className="space-y-6">
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <div className="flex items-center gap-2 text-blue-700 mb-3">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="font-medium">Select Rental Period</span>
+                    </div>
+                    <p className="text-sm text-blue-600 mb-4">
+                      Choose dates first to see available vehicles
+                    </p>
+                    {/* Dates Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Pickup Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          min={new Date().toISOString().split("T")[0]}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
+                        />
                       </div>
-                    )}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Pickup Time
+                        </label>
+                        <input
+                          type="time"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Return Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          min={startDate || new Date().toISOString().split("T")[0]}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Return Time
+                        </label>
+                        <input
+                          type="time"
+                          value={endTime}
+                          onChange={(e) => setEndTime(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Step 3: Dates & Details */}
+              {/* Step 3: Select Vehicle & Details */}
               {step === 3 && (
                 <div className="space-y-6">
-                  {/* Dates */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Pickup Date <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        min={new Date().toISOString().split("T")[0]}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
-                      />
+                  {/* Date Summary */}
+                  <div className="p-3 bg-blue-50 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-blue-700">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-sm font-medium">
+                        {startDate && new Date(startDate).toLocaleDateString()} - {endDate && new Date(endDate).toLocaleDateString()}
+                      </span>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Pickup Time
-                      </label>
-                      <input
-                        type="time"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Return Date <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        min={startDate || new Date().toISOString().split("T")[0]}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Return Time
-                      </label>
-                      <input
-                        type="time"
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Change dates
+                    </button>
+                  </div>
+
+                  {/* Vehicle Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Select Available Vehicle
+                    </label>
+                    {loadingVehicles ? (
+                      <div className="flex items-center justify-center py-8">
+                        <svg className="animate-spin h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span className="ml-2 text-slate-600">Loading available vehicles...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative mb-3">
+                          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          <input
+                            type="text"
+                            placeholder="Search vehicles..."
+                            value={vehicleSearch}
+                            onChange={(e) => setVehicleSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
+                          />
+                        </div>
+
+                        <div className="grid gap-2 max-h-48 overflow-y-auto">
+                          {filteredVehicles.map((vehicle) => {
+                            const image = getVehicleImage(vehicle);
+                            return (
+                              <button
+                                key={vehicle.id}
+                                onClick={() => setSelectedVehicleId(vehicle.id)}
+                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition text-left ${
+                                  selectedVehicleId === vehicle.id
+                                    ? "border-blue-600 bg-blue-50"
+                                    : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
+                                }`}
+                              >
+                                <div className="w-16 h-12 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0">
+                                  {image ? (
+                                    <img src={image} alt={vehicle.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h8m-8 4h8m-6 4h4" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-slate-900 text-sm">{vehicle.name}</p>
+                                  <p className="text-xs text-slate-500">{vehicle.brand} {vehicle.model}</p>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <p className="font-bold text-blue-600 text-sm">{formatCurrency(vehicle.pricePerDay)}</p>
+                                  <p className="text-xs text-slate-400">/day</p>
+                                </div>
+                                {selectedVehicleId === vehicle.id && (
+                                  <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                )}
+                              </button>
+                            );
+                          })}
+
+                          {filteredVehicles.length === 0 && !loadingVehicles && (
+                            <div className="text-center py-6 text-slate-500">
+                              <svg className="w-12 h-12 mx-auto mb-2 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                              </svg>
+                              <p>No vehicles available for selected dates</p>
+                              <button
+                                type="button"
+                                onClick={() => setStep(2)}
+                                className="mt-2 text-blue-600 hover:underline text-sm"
+                              >
+                                Try different dates
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Locations */}
@@ -913,7 +1007,18 @@ export default function CreateBookingModal({
         {/* Modal Footer */}
         <div className="flex justify-between gap-3 p-6 border-t border-slate-100">
           <button
-            onClick={step > 1 ? () => setStep(step - 1) : handleClose}
+            onClick={() => {
+              if (step > 1) {
+                // If going back from vehicle step to dates, clear vehicle selection
+                if (step === 3) {
+                  setSelectedVehicleId("");
+                  setVehicles([]);
+                }
+                setStep(step - 1);
+              } else {
+                handleClose();
+              }
+            }}
             className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition"
           >
             {step > 1 ? "Back" : "Cancel"}
@@ -922,7 +1027,7 @@ export default function CreateBookingModal({
           <div className="flex gap-3">
             {step < 4 ? (
               <button
-                onClick={() => setStep(step + 1)}
+                onClick={handleNextStep}
                 disabled={!canProceed()}
                 className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
