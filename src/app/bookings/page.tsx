@@ -27,6 +27,20 @@ async function getUserBookings(userId: string) {
     include: {
       vehicle: true,
       payment: true,
+      invoice: {
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          totalAmount: true,
+          balanceDue: true,
+        },
+      },
+      documents: {
+        select: {
+          id: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -40,6 +54,12 @@ async function getUserBookings(userId: string) {
       // Parse images from JSON string to array
       images: parseImages(booking.vehicle.images),
     },
+    invoice: booking.invoice ? {
+      ...booking.invoice,
+      totalAmount: Number(booking.invoice.totalAmount),
+      balanceDue: Number(booking.invoice.balanceDue),
+    } : null,
+    documentCount: booking.documents.length,
   }));
 }
 
@@ -327,14 +347,24 @@ export default async function BookingsPage() {
 
                       {/* Actions */}
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                        <p className="text-sm text-slate-400">
-                          Booked on{" "}
-                          {new Date(booking.createdAt).toLocaleDateString("en-US", {
-                            month: "long",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </p>
+                        <div className="flex items-center gap-4">
+                          <p className="text-sm text-slate-400">
+                            Booked on{" "}
+                            {new Date(booking.createdAt).toLocaleDateString("en-US", {
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </p>
+                          {booking.documentCount > 0 && (
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              {booking.documentCount} doc{booking.documentCount !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-3">
                           <Link
                             href={`/vehicles/${booking.vehicleId}`}
@@ -342,13 +372,29 @@ export default async function BookingsPage() {
                           >
                             View Vehicle
                           </Link>
+                          {booking.invoice && (
+                            <Link
+                              href={`/invoices/${booking.invoice.id}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-700 text-sm font-medium rounded-lg hover:bg-orange-100 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              View Invoice
+                              {booking.invoice.balanceDue > 0 && (
+                                <span className="ml-1 px-1.5 py-0.5 bg-orange-200 text-orange-800 text-xs rounded">
+                                  Due
+                                </span>
+                              )}
+                            </Link>
+                          )}
                           {(booking.status === "PENDING" || booking.status === "CONFIRMED") && (
                             <CancelBookingButton
                               bookingId={booking.id}
                               vehicleName={booking.vehicle.name}
                             />
                           )}
-                          {booking.status === "COMPLETED" && (
+                          {booking.status === "COMPLETED" && !booking.invoice && (
                             <Link
                               href={`/vehicles/${booking.vehicleId}#reviews`}
                               className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
