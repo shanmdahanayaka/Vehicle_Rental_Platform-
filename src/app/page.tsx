@@ -1,5 +1,6 @@
 import Hero from "@/components/Hero";
 import VehicleCard from "@/components/VehicleCard";
+import FeaturedArticles from "@/components/FeaturedArticles";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
@@ -672,6 +673,9 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Featured Articles Section */}
+      <FeaturedArticles />
 
       {/* CTA Section */}
       <section className="py-20 bg-slate-900 text-white relative overflow-hidden">

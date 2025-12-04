@@ -462,6 +462,86 @@ export const invoiceConfig = {
 };
 
 // ============================================
+// BLOG / ARTICLES CONFIGURATION
+// ============================================
+export const blogConfig = {
+  // Post Limits (configurable)
+  maxArticles: 50,                    // Total articles limit
+  maxArticlesPerType: {
+    NEWS: 20,
+    TRAVEL_TIPS: 20,
+    PROMOTION: 15,
+  },
+  maxImagesPerArticle: 10,
+  maxFeaturedArticles: 6,             // Homepage featured limit
+
+  // Display Settings
+  articlesPerPage: 12,
+  excerptLength: 200,                 // Characters for auto-excerpt
+
+  // SEO Defaults
+  defaultMetaTitle: `Blog | ${brand.name}`,
+  defaultMetaDescription: "Latest news, travel tips, and special offers",
+
+  // Google Drive Settings
+  useGoogleDrive: true,
+  googleDriveFolderId: process.env.GOOGLE_DRIVE_FOLDER_ID || "",
+
+  // Type Labels & Colors
+  typeConfig: {
+    NEWS: {
+      label: "News & Updates",
+      color: "blue",
+      bgColor: "bg-blue-100",
+      textColor: "text-blue-700",
+      borderColor: "border-blue-200",
+      gradient: "from-blue-500 to-cyan-500",
+      icon: "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z",
+    },
+    TRAVEL_TIPS: {
+      label: "Travel Tips",
+      color: "green",
+      bgColor: "bg-green-100",
+      textColor: "text-green-700",
+      borderColor: "border-green-200",
+      gradient: "from-green-500 to-emerald-500",
+      icon: "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    },
+    PROMOTION: {
+      label: "Special Offers",
+      color: "purple",
+      bgColor: "bg-purple-100",
+      textColor: "text-purple-700",
+      borderColor: "border-purple-200",
+      gradient: "from-purple-500 to-pink-500",
+      icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    },
+  },
+};
+
+// Helper to get article type config
+export function getArticleTypeConfig(type: keyof typeof blogConfig.typeConfig) {
+  return blogConfig.typeConfig[type];
+}
+
+// Helper to calculate reading time from content
+export function calculateReadingTime(content: string): number {
+  const wordsPerMinute = 200;
+  const wordCount = content.replace(/<[^>]*>/g, "").split(/\s+/).length;
+  return Math.ceil(wordCount / wordsPerMinute);
+}
+
+// Helper to generate slug from title
+export function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+}
+
+// ============================================
 // QUICK ACCESS - Combined Config Export
 // ============================================
 const siteConfig = {
@@ -483,10 +563,14 @@ const siteConfig = {
   paymentMethods,
   documentTypes,
   invoiceConfig,
+  blogConfig,
   // Helper functions
   formatCurrency,
   formatPrice,
   getAllLocationNames,
+  getArticleTypeConfig,
+  calculateReadingTime,
+  generateSlug,
 };
 
 export default siteConfig;

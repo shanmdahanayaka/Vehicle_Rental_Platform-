@@ -32,6 +32,7 @@ model User {
   chatMessages  ChatMessage[]
   favorites     Favorite[]
   cartItems     CartItem[]
+  articles      Article[]    // Blog articles authored by user
 }
 
 model Account {
@@ -780,4 +781,78 @@ model InvoicePayment {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
+}
+
+// ==================== BLOG / ARTICLES ====================
+
+enum ArticleType {
+  NEWS           // Company news & announcements
+  TRAVEL_TIPS    // Destination guides & travel advice
+  PROMOTION      // Special offers & deals
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Article {
+  id              String        @id @default(cuid())
+  title           String
+  slug            String        @unique
+  excerpt         String?       @db.Text        // Short preview text
+  content         String        @db.LongText    // Rich HTML content
+  type            ArticleType   @default(NEWS)
+  status          ArticleStatus @default(DRAFT)
+
+  // Media (Google Drive URLs)
+  featuredImage   String?                       // Main image URL
+  images          String?       @db.Text        // JSON array of image URLs
+  videoUrl        String?                       // YouTube embed URL
+
+  // SEO & Meta
+  metaTitle       String?
+  metaDescription String?       @db.Text
+  metaKeywords    String?
+
+  // Display Options
+  isFeatured      Boolean       @default(false) // Show on homepage
+  sortOrder       Int           @default(0)
+  readingTime     Int?                          // Minutes (auto-calculated)
+  viewCount       Int           @default(0)
+
+  // Relations
+  authorId        String
+  author          User          @relation(fields: [authorId], references: [id])
+  tags            ArticleTag[]
+
+  // Timestamps
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([type, status])
+  @@index([isFeatured])
+  @@index([slug])
+  @@index([publishedAt])
+}
+
+model Tag {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  slug      String       @unique
+  color     String?                             // Hex color for display
+  articles  ArticleTag[]
+  createdAt DateTime     @default(now())
+}
+
+model ArticleTag {
+  id        String   @id @default(cuid())
+  articleId String
+  tagId     String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, tagId])
 }

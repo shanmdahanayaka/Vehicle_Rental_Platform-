@@ -84,6 +84,14 @@ export default function Navbar() {
                 >
                   FAQ
                 </Link>
+                <Link
+                  href="/blog"
+                  className={`transition font-medium ${
+                    pathname === "/blog" || pathname?.startsWith("/blog/") ? "text-blue-600" : "text-slate-600 hover:text-blue-600"
+                  }`}
+                >
+                  Blog
+                </Link>
               </>
             )}
             {session ? (
@@ -340,6 +348,15 @@ export default function Navbar() {
                   }`}
                 >
                   FAQ
+                </Link>
+                <Link
+                  href="/blog"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`block rounded-lg px-3 py-2 font-medium ${
+                    pathname === "/blog" || pathname?.startsWith("/blog/") ? "text-blue-600 bg-blue-50" : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  Blog
                 </Link>
                 <div className="border-t border-slate-200 my-2" />
               </>
